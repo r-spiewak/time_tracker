@@ -13,7 +13,7 @@ pandas = "^2.2.2"
 
 
 [tool.poetry.scripts]
-script-profits = 'script-profits.run:main'
+script-profits = 'script-profits.run:run'
 
 [build-system]
 requires = ["poetry-core"]
