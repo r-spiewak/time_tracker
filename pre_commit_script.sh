@@ -21,7 +21,7 @@ UNSTAGED_STASH="$NO_STASH_TEXT"
 # This is set down here because some of the git commands above may return no input, and then an exit code of 1.
 set -o errexit -o errtrace
 
-trap 'on_error $STASH_ATTEMPT $UNTRACKED_STASH_NAME $UNSTAGED_STASH_ATTEMPT $UNSTAGED_STASH_NAME $DEBUG $LINENO ${?} $BASH_COMMAND $(caller)' ERR EXIT
+trap 'on_error $STASH_ATTEMPT $UNTRACKED_STASH_NAME $UNSTAGED_STASH_ATTEMPT $UNSTAGED_STASH_NAME $DEBUG $LINENO ${?} $BASH_COMMAND $BASH_LINENO $(caller)' ERR EXIT
 
 unstash()
 {
@@ -43,7 +43,8 @@ on_error()
     LINE_NO="$6"
     ERR_CODE="$7"
     LAST_CMD="$8"
-    if [[ $DEBUG_FLAG == "yes" ]]; then echo "Trapped error: line $LINE_NO, code $ERR_CODE, command $LAST_CMD."; fi
+    LINENO_BASH="$9"
+    if [[ $DEBUG_FLAG == "yes" ]]; then echo "Trapped error: line $LINE_NO, code $ERR_CODE, command $LAST_CMD, bash lineno: $LINENO_BASH."; fi
     STASH_ATTEMPT_INPUT="$1"
     STASH_NAME_INPUT="$2"
     UNSTAGED_ATTEMPT_INPUT="$3"
