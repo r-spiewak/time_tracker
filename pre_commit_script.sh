@@ -19,7 +19,7 @@ SASHED="$NO_STASH_TEXT"
 UNSTAGED_STASH="$NO_STASH_TEXT"
 
 # This is set down here because some of the git commands above may return no input, and then an exit code of 1.
-#set -o errexit
+set -o errexit -o errtrace
 
 trap 'on_error $STASH_ATTEMPT $UNTRACKED_STASH_NAME $UNSTAGED_STASH_ATTEMPT $UNSTAGED_STASH_NAME $DEBUG $LINENO ${?} $BASH_COMMAND $(caller)' ERR EXIT
 
