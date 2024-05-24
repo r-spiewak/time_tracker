@@ -29,7 +29,7 @@ def main(
 # def verbosity_level(
 #     ctx: typer.Context,
 #     #verbosity: Annotated[Optional[List[bool]], typer.Option(...,"--verbosity","-v")] = [False],
-#     verbosity: Annotated[Optional[int], typer.Option(0,"--verbosity","-v",count=True)]
+#     verbosity: Annotated[Optional[int], typer.Option("--verbosity","-v",count=True)]
 # ) -> int:
 #     """
 #     Manage users in the awesome CLI app.
