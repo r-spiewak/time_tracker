@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CHECK_EXTENSIONS=(".py")
+
 # git stash -u -m untracked_files -- $(git status --porcelain | grep '^??' | cut -c4- | sed -n 'H;1h;${g;s/\n/ /g;p}') $(git status --porcelain | grep '^MM' | cut -c4- | sed -n 'H;1h;${g;s/\n/ /g;p}')
 # echo "Starting script."
 UNTRACKED="$(git status --porcelain | grep '^??' | cut -c4- | sed -n 'H;1h;${g;s/\n/ /g;p}')"
@@ -17,15 +19,15 @@ SASHED="$NO_STASH_TEXT"
 UNSTAGED_STASH="$NO_STASH_TEXT"
 
 # This is set down here because some of the git commands above may return no input, and then an exit code of 1.
-set -o errexit
+#set -o errexit
 
-trap 'on_error $STASH_ATTEMPT $UNTRACKED_STASH_NAME $UNSTAGED_STASH_ATTEMPT $UNSTAGED_STASH_NAME $DEBUG' ERR EXIT
+trap 'on_error $STASH_ATTEMPT $UNTRACKED_STASH_NAME $UNSTAGED_STASH_ATTEMPT $UNSTAGED_STASH_NAME $DEBUG $LINENO ${?} $BASH_COMMAND $(caller)' ERR EXIT
 
 unstash()
 {
     UNSTASH_NAME="$1"
     DEBUG_FLAG="$2"
-    STASH_NAME=$(git stash list --pretty='%gd %s'|grep "$UNSTASH_NAME"|head -1|gawk '{print $1}')
+    STASH_NAME=$(git stash list --pretty='%gd %s'|grep "$UNSTASH_NAME"|head -1|awk '{print $1}')
     if [[ -n $STASH_NAME ]]
     then
         if [[ $DEBUG_FLAG == "yes" ]]; then echo "Unstashing $UNSTASH_NAME:"; fi
@@ -38,7 +40,10 @@ unstash()
 on_error()
 {
     DEBUG_FLAG="$5"
-    if [[ $DEBUG_FLAG == "yes" ]]; then echo "Trapped error."; fi
+    LINE_NO="$6"
+    ERR_CODE="$7"
+    LAST_CMD="$8"
+    if [[ $DEBUG_FLAG == "yes" ]]; then echo "Trapped error: line $LINE_NO, code $ERR_CODE, command $LAST_CMD."; fi
     STASH_ATTEMPT_INPUT="$1"
     STASH_NAME_INPUT="$2"
     UNSTAGED_ATTEMPT_INPUT="$3"
@@ -53,6 +58,7 @@ on_error()
     then
         unstash "$UNSTAGED_NAME_INPUT" $DEBUG_FLAG
     fi
+    #exit 1
 }
 
 help()
@@ -75,15 +81,30 @@ run_scripts()
     #THE_DIR="$(dirname $0)"
     THE_DIR="$(git rev-parse --show-toplevel)"
     if [[ $DEBUG_FLAG == "yes" ]]; then echo "Current working dir: $THE_DIR"; fi
-    #"$THE_DIR"/checks.sh checks
-    "$THE_DIR"/checks.sh autoflake
-    "$THE_DIR"/checks.sh black
-    "$THE_DIR"/checks.sh isort
-    "$THE_DIR"/checks.sh mypy
-    "$THE_DIR"/checks.sh pylint
-    if [[ $DO_TESTS == "yes" ]]
+    if [[ $DEBUG_FLAG == "yes" ]]; then echo "All args to script: ${@:3}"; fi
+    # Filter args to only keep python files:
+    FILES=()
+    for filename in ${@:3}
+    do
+        if [[ $DEBUG_FLAG == "yes" ]]; then echo "filename: $filename"; fi
+        if [[ $(echo ${CHECK_EXTENSIONS[@]} | fgrep -w ".${filename##*.}") ]]
+        then
+            FILES+=($filename)
+        fi
+    done
+    if [[ $DEBUG_FLAG == "yes" ]]; then echo "FILES: $FILES"; fi
+    #"$THE_DIR"/checks.sh checks $FILES
+    if (( ${#FILES[@]} ))
     then
-        "$THE_DIR"/checks.sh test -c
+        "$THE_DIR"/checks.sh autoflake ${FILES[@]}
+        "$THE_DIR"/checks.sh black ${FILES[@]}
+        "$THE_DIR"/checks.sh isort ${FILES[@]}
+        "$THE_DIR"/checks.sh mypy #${FILES[@]}
+        "$THE_DIR"/checks.sh pylint #${FILES[@]}
+        if [[ $DO_TESTS == "yes" ]]
+        then
+            "$THE_DIR"/checks.sh test
+        fi
     fi
 }
 
@@ -113,6 +134,7 @@ do
             ;;
     esac
 done
+if [[ $DEBUG == "yes" ]]; then echo "All remaining args: ${@:2}"; fi
 
 if [[ -n $STAGED_THEN_MODIFIED ]]
 then
@@ -124,7 +146,7 @@ fi
 
 if [[ $STASH_UNSTAGED == "no" && $STASH_UNTRACKED == "no" ]]
 then
-    run_scripts $TESTS $DEBUG
+    run_scripts $TESTS $DEBUG ${@:2}
     if [[ $DEBUG == "yes" ]]; then echo "Finished sequence: stash neither unstaged nor untracked."; fi
 elif [[ $STASH_UNSTAGED == "yes" && $STASH_UNTRACKED == "yes" ]]
 then
@@ -142,7 +164,7 @@ then
     else
         if [[ $DEBUG == "yes" ]]; then echo "No unstaged changes or untracked files to stash."; fi
     fi
-    run_scripts $TESTS $DEBUG
+    run_scripts $TESTS $DEBUG ${@:2}
     if [[ $STASHED != *$NO_STASH_TEXT* ]]
     then
         if [[ $DEBUG == "yes" ]]; then echo "$STASHED"; fi
@@ -166,7 +188,7 @@ then
     else
         if [[ $DEBUG == "yes" ]]; then echo "No unstaged changes to stash."; fi
     fi
-    run_scripts $TESTS $DEBUG
+    run_scripts $TESTS $DEBUG ${@:2}
     if [[ $STASHED != *$NO_STASH_TEXT* ]]
     then
         unstash $UNTRACKED_STASH_NAME $DEBUG
@@ -209,7 +231,7 @@ then
     else
         if [[ $DEBUG == "yes" ]]; then echo "No untracked files to stash."; fi
     fi
-    run_scripts $TESTS $DEBUG
+    run_scripts $TESTS $DEBUG ${@:2}
     if [[ $STASHED != *$NO_STASH_TEXT* ]]
     then
         unstash $UNTRACKED_STASH_NAME $DEBUG

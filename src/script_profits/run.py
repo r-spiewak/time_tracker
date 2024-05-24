@@ -1,5 +1,6 @@
+"""Run the script_profits app."""
+
 import typer
-from typing import List, Optional
 from typing_extensions import Annotated
 
 app = typer.Typer()
@@ -8,11 +9,13 @@ state = {"verbosity": 0}
 
 @app.command()
 def main(
-    data: Annotated[str, typer.Option(...,"--data","-d")],
-    percentage: Annotated[Optional[int], typer.Option("--percentage","-p")] = 10,
-    verbosity: Annotated[Optional[int], typer.Option("--verbosity","-v",count=True)] = 0,
+    data: Annotated[str, typer.Option(..., "--data", "-d")],
+    percentage: Annotated[int, typer.Option("--percentage", "-p")] = 10,
+    verbosity: Annotated[
+        int, typer.Option("--verbosity", "-v", count=True)
+    ] = 0,
 ) -> int:
-    """Main function."""
+    """Main function to call the script_profit methods."""
 
     # Do stuff here.
     print("It worked!")
@@ -21,7 +24,7 @@ def main(
         state["verbosity"] = verbosity
     print(f"data: {data}")
     print(f"percentage: {percentage}")
-
+    # return call_function(state, data, percentage)
     return 0
 
 
@@ -45,7 +48,9 @@ def main(
 
 
 def run() -> None:
+    """Entrypoint for poetry."""
     app()
+
 
 if __name__ == "__main__":
     app()

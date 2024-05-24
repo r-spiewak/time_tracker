@@ -1,6 +1,0 @@
-repos:
-  - repo: local
-    hooks: 
-    - id: checks
-      name: Checks
-      entry: bash pre_commit_script.sh -td

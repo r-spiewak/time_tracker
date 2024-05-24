@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "script-profits"
+name = "script_profits"
 version = "0.1.0"
 description = ""
 authors = ["r-spiewak <63987228+r-spiewak@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "script-profits", from = "src"}]
+packages = [{include = "script_profits", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -20,10 +20,11 @@ pylint = "^3.0.3"
 pytest = "^8.0.0"
 coverage = "^7.4.1"
 pre-commit = "^3.6.1"
+pytest-testdox = "^3.1.0"
 
 [tool.black]
 line-length = 79
-target-version = ['py312']
+target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -66,9 +67,33 @@ addopts = "--basetemp=/tmp/pytest"
 [tool.coverage.run]
 source = ["src", "tests"]
 omit = []
+# For avoiding sqlite3 concurrency issues on CIFS drives:
+data_file = "/tmp/script_profits/.coverage"
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+
+    # Don't complain about abstract methods, they aren't run:
+    "@(abc\\.)?abstractmethod",
+    ]
+
+ignore_errors = true
 
 [tool.poetry.scripts]
-script-profits = 'script-profits.run:run'
+script-profits = 'script_profits.run:run'
+script_profits = 'script_profits.run:run'
 
 [build-system]
 requires = ["poetry-core"]

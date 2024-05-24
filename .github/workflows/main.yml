@@ -1,0 +1,38 @@
+on: push
+jobs:
+  test:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v4
+    # - uses: actions/setup-node@v3
+    #   with:
+    #     node-version: 16
+    # - run: npm install-ci-test
+    # - uses:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+    - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+    - name: Install dependencies
+      run: |
+        poetry install --no-interaction
+    - name: Running checks
+      run: |
+        source $VENV  
+        bash checks.sh
+      # or just do poetry run ...
+      # Probably just make a script to use as premerge and precommit, and run that here...
+  # publish:
+  #   needs: [test]
+  #   steps:
+  #   - uses: actions/checkout@v4

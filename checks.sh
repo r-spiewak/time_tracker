@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 # This should have options to run each check individually,
 # as well as all the checks together (and it can have 
@@ -183,9 +183,9 @@ pytest_check(){
 pre_commit(){
     DEBUG_FLAG="$1"
     TESTS_FLAG="$2"
-    autoflake_check --in-place
-    black_check
-    isort_check
+    autoflake_check --in-place $*
+    black_check $*
+    isort_check $*
     mypy_check
     pylint_check
     if [[ $TESTS_FLAG == "yes" ]]
@@ -195,9 +195,9 @@ pre_commit(){
 }
 
 pre_merge(){
-    autoflake_check --check
-    black_check --check
-    isort_check --check-only
+    autoflake_check --check $*
+    black_check --check $*
+    isort_check --check-only $*
     mypy_check
     pylint_check
     pytest_check
@@ -263,15 +263,15 @@ case $CMD in
         exit 0
         ;;
     autoflake)
-        autoflake_check --in-place
+        autoflake_check --in-place $*
         exit 0
         ;;
     black)
-        black_check
+        black_check $*
         exit 0
         ;;
     isort)
-        isort_check
+        isort_check $*
         exit 0
         ;;
     mypy)
@@ -287,11 +287,11 @@ case $CMD in
         exit 0
         ;;
     *commit)
-        pre_commit $DEBUG $TESTS
+        pre_commit $DEBUG $TESTS $*
         exit 0
         ;;
     *merge)
-        pre_merge
+        pre_merge $*
         exit 0
         ;;
     help)
