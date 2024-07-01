@@ -29,8 +29,10 @@ jobs:
       run: |
         poetry install --no-interaction
     - name: Running checks
+      # run: |
+      #   source $VENV  
+      #   bash checks.sh
       run: |
-        source $VENV  
         bash checks.sh
       # or just do poetry run ...
       # Probably just make a script to use as premerge and precommit, and run that here...
