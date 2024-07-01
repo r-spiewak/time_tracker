@@ -12,3 +12,8 @@ Template repo for Python projects.
 
 After completing the regular installation above, also do the following:
 1. `poetry run pre-commit install`
+
+
+## Usage in Other Derived Repos
+
+Create a repo based on this template. See https://github.com/marketplace/actions/actions-template-sync to make an Action to make the new repo automatically (make a PR to) sync changes from the template (this) repo.
