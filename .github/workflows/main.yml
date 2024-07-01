@@ -33,7 +33,7 @@ jobs:
       #   source $VENV  
       #   bash checks.sh
       run: |
-        bash checks.sh
+        bash checks.sh merge
       # or just do poetry run ...
       # Probably just make a script to use as premerge and precommit, and run that here...
   # publish:
