@@ -59,7 +59,7 @@ on_error()
     then
         unstash "$UNSTAGED_NAME_INPUT" $DEBUG_FLAG
     fi
-    #exit 1
+    exit $ERR_CODE
 }
 
 help()
@@ -93,19 +93,20 @@ run_scripts()
             FILES+=($filename)
         fi
     done
-    if [[ $DEBUG_FLAG == "yes" ]]; then echo "FILES: $FILES"; fi
+    if [[ $DEBUG_FLAG == "yes" ]]; then echo "FILES: ${FILES[@]}"; fi
     #"$THE_DIR"/checks.sh checks $FILES
     if (( ${#FILES[@]} ))
     then
-        "$THE_DIR"/checks.sh autoflake ${FILES[@]}
-        "$THE_DIR"/checks.sh black ${FILES[@]}
-        "$THE_DIR"/checks.sh isort ${FILES[@]}
-        "$THE_DIR"/checks.sh mypy #${FILES[@]}
-        "$THE_DIR"/checks.sh pylint #${FILES[@]}
-        if [[ $DO_TESTS == "yes" ]]
-        then
-            "$THE_DIR"/checks.sh test
-        fi
+        # "$THE_DIR"/checks.sh autoflake ${FILES[@]}
+        # "$THE_DIR"/checks.sh black ${FILES[@]}
+        # "$THE_DIR"/checks.sh isort ${FILES[@]}
+        # "$THE_DIR"/checks.sh mypy #${FILES[@]}
+        # "$THE_DIR"/checks.sh pylint #${FILES[@]}
+        # if [[ $DO_TESTS == "yes" ]]
+        # then
+        #     "$THE_DIR"/checks.sh test
+        # fi
+        "$THE_DIR"/checks.sh commit -t ${FILES[@]}
     fi
 }
 
@@ -243,3 +244,4 @@ fi
 
 if [[ $DEBUG == "yes" ]]; then echo "Last line of file."; fi
 
+exit 0

@@ -183,6 +183,7 @@ pytest_check(){
 pre_commit(){
     DEBUG_FLAG="$1"
     TESTS_FLAG="$2"
+    shift 2
     autoflake_check --in-place $*
     black_check $*
     isort_check $*
@@ -242,9 +243,11 @@ while getopts dth opt; do
         d)
             DEBUG="yes"
             TESTS="yes"
+            shift
             ;;
         t)
             TESTS="yes"
+            shift
             ;;
         h)
             help

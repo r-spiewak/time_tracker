@@ -2,14 +2,14 @@
 
 from typer.testing import CliRunner
 
-from script_profits.run import app
+from python_template.run import app
 
 runner = CliRunner()
 
 
 def test_app(capsys):
     """Test the cli app invocation."""
-    result = runner.invoke(app, ["--data", "tests/test_db.csv"])
+    result = runner.invoke(app, ["--data", "tests/test_file"])
     with capsys.disabled():
         print("stdout:")
         print(result.stdout)

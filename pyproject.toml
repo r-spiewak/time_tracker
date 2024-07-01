@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "script_profits"
+name = "python_template"
 version = "0.1.0"
 description = ""
 authors = ["r-spiewak <63987228+r-spiewak@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "script_profits", from = "src"}]
+packages = [{include = "python_template", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -92,8 +92,8 @@ exclude_also = [
 ignore_errors = true
 
 [tool.poetry.scripts]
-script-profits = 'script_profits.run:run'
-script_profits = 'script_profits.run:run'
+python-template = 'python_template.run:run'
+python_template = 'python_template.run:run'
 
 [build-system]
 requires = ["poetry-core"]
