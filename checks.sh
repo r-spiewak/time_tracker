@@ -196,7 +196,7 @@ pre_commit(){
 }
 
 pre_merge(){
-    autoflake_check --check $*
+    autoflake_check --check $* .
     black_check --check $*
     isort_check --check-only $*
     mypy_check
