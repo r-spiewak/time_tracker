@@ -1,7 +1,7 @@
 on:
     # cronjob trigger
   schedule:
-  - cron:  "0 0 1 * *"
+  - cron:  "0 0 2 * *"
   # manual trigger
   workflow_dispatch:
 jobs:
@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      workflows: write
 
     steps:
       # To use this repository's private action, you must check out the repository
