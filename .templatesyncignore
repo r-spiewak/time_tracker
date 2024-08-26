@@ -1,1 +1,4 @@
+# Since GitHub actions can't be made to allow
+# modifications to workflows without using a
+# PAT, we ignore workflows.
 .github/workflows/*
