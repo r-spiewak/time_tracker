@@ -6,5 +6,6 @@ repos:
       language: system
       pass_filenames: true
       verbose: true
+      require_serial: true
       entry: bash pre_commit_script.sh -td
       #entry: strace -o pre_commit_script.sh.strace -f pre_commit_script.sh -t
