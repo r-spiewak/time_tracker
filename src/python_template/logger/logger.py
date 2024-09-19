@@ -31,7 +31,7 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
                 message'. Defaults to None.
             #args: Additional arguments to pass to super class.
         """
-        # super.__init__(*args)
+        # super().__init__(*args)
         # logger_attribute_name = '_' + self.__name__ + '__logger'
         logger_name = ".".join(
             [c.__name__ for c in self.__class__.__mro__[-2::-1]]
