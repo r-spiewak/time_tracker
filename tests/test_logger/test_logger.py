@@ -1,5 +1,6 @@
 """This file contains tests for the LoggerMixin class."""
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -18,7 +19,9 @@ def test_logger(test_class):
     assert test_text in lines[0]
 
     # Test with custom logger_filename and logger_format:
-    logger_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_Test.log"
+    logger_filename = (
+        f"logs/{datetime.now().strftime('%Y%m%d_%H%M%S')}_Test.log"
+    )
     logger_format = (
         "Extra stuff: %(asctime)s.%(msecs)d %(levelname)-8s "
         "[%(pathname)s:%(lineno)d in %(funcName)s] "
@@ -56,3 +59,5 @@ def test_logger(test_class):
     with open(custom_logfile, "r", encoding="utf8") as file:
         new_lines = file.readlines()
     assert test_text in new_lines[0]
+    custom_test_class.logger_handler.close()
+    os.remove(custom_logfile)
