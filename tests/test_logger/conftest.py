@@ -17,4 +17,5 @@ def test_class():
     test_class_instance = TestClass()
     logfile = test_class_instance.logger_filename
     yield test_class_instance
+    test_class_instance.logger_handler.close()
     os.remove(logfile)
