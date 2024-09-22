@@ -45,7 +45,7 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
             self.logger_filename = Path(logger_filename)
         else:
             self.logger_filename = Path(
-                f"logs/{datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f_%z')}"
+                f"logs/{datetime.now().strftime('%Y-%m-%d_%H.%M.%S.%f_%z')}"
                 f"_{self.__class__.__name__}_.log"
             )
         self.logger_filename.parents[0].mkdir(parents=True, exist_ok=True)
