@@ -68,7 +68,7 @@ addopts = "--basetemp=/tmp/pytest"
 source = ["src", "tests"]
 omit = []
 # For avoiding sqlite3 concurrency issues on CIFS drives:
-data_file = "/tmp/script_profits/.coverage"
+data_file = "/tmp/python_template/.coverage"
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
