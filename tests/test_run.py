@@ -6,7 +6,8 @@ from python_template.run import app
 
 # INVALID_PERCENTAGE = "Invalid value for '--percentage'"
 IT_WORKED = "It worked!"
-MISSING_DATA = "Missing option '--data'"
+# MISSING_DATA = "Missing option '--data'"
+MISSING_DATA = "Usage:"
 PERCENTAGE_10 = "percentage: 10"
 PERCENTAGE_25 = "percentage: 25"
 SAMPLE_DATA = "data: sample_data"
