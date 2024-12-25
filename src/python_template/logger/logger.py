@@ -59,6 +59,7 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
                 "%(message)s"
             )
         self.logger_handler.setFormatter(logging.Formatter(self.logger_format))
+        self.logger.handlers = []
         self.logger.addHandler(self.logger_handler)
 
     # def __new__(cls, name: str, bases:tuple[type], dct: dict):
