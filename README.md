@@ -12,6 +12,7 @@ Template repo for Python projects.
 
 After completing the regular installation above, also do the following:
 1. `poetry run pre-commit install`
+2. It may also be necessary to `chmod +x checks.sh`.
 
 
 ## Usage in Other Derived Repos
