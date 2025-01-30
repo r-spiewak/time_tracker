@@ -48,6 +48,8 @@ def test_logger(test_class):
                 logger_filename=logger_filename,
                 logger_format=logger_format,
             )
+            # super goes through this class's MRO (method resultion order).
+            # An alternative would be to directly use LoggerMixin.__init__().
 
     custom_test_class = TestClass(
         logger_filename=logger_filename,
