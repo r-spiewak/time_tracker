@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from python_template.logger import LoggerMixin
+from time_tracker.logger import LoggerMixin
 
 
 @pytest.fixture

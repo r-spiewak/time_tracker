@@ -2,7 +2,7 @@
 
 from typer.testing import CliRunner
 
-from python_template.run import app
+from time_tracker.run import app
 
 # INVALID_PERCENTAGE = "Invalid value for '--percentage'"
 IT_WORKED = "It worked!"

@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "python_template"
+name = "time_tracker"
 version = "0.1.0"
 description = ""
 authors = ["r-spiewak <63987228+r-spiewak@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "python_template", from = "src"}]
+packages = [{include = "time_tracker", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -70,7 +70,7 @@ addopts = "--basetemp=/tmp/pytest"
 source = ["src", "tests"]
 omit = []
 # For avoiding sqlite3 concurrency issues on CIFS drives:
-data_file = "/tmp/python_template/.coverage"
+data_file = "/tmp/time_tracker/.coverage"
 
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
@@ -94,8 +94,8 @@ exclude_also = [
 ignore_errors = true
 
 [tool.poetry.scripts]
-python-template = 'python_template.run:run'
-python_template = 'python_template.run:run'
+time-tracker = 'time_tracker.run:run'
+time_tracker = 'time_tracker.run:run'
 
 [build-system]
 requires = ["poetry-core"]

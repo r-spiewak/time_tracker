@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from python_template.logger import LoggerMixin
+from time_tracker.logger import LoggerMixin
 
 
 def test_logger(test_class):

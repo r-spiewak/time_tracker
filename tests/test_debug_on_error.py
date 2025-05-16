@@ -10,7 +10,7 @@ def test_info_interactive_mode(mocker: MockerFixture):
     mock_stderr = mocker.patch("sys.stderr.isatty", return_value=False)
     mock_excepthook = mocker.patch("sys.__excepthook__")
 
-    from python_template.debug_on_error import (  # pylint: disable=import-outside-toplevel
+    from time_tracker.debug_on_error import (  # pylint: disable=import-outside-toplevel
         info,
     )
 
@@ -30,7 +30,7 @@ def test_info_non_interactive_mode(mocker: MockerFixture):
     mock_traceback = mocker.patch("traceback.print_exception")
     mock_pdb = mocker.patch("pdb.post_mortem")
 
-    from python_template.debug_on_error import (  # pylint: disable=import-outside-toplevel
+    from time_tracker.debug_on_error import (  # pylint: disable=import-outside-toplevel
         info,
     )
 
@@ -47,7 +47,7 @@ def test_info_non_interactive_mode(mocker: MockerFixture):
 
 def test_sys_excepthook_set():
     """Test that sys.excepthook is set to the info function."""
-    from python_template.debug_on_error import (  # pylint: disable=import-outside-toplevel
+    from time_tracker.debug_on_error import (  # pylint: disable=import-outside-toplevel
         info,
     )
 
