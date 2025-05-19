@@ -3,14 +3,40 @@
 import typer
 from typing_extensions import Annotated
 
+from time_tracker.constants import DEFAULT_FILENAME
+from time_tracker.tracker import TimeTracker
+
 app = typer.Typer()
 state = {"verbosity": 0}
 
 
 @app.command()
-def main(
-    data: Annotated[str, typer.Option(..., "--data", "-d")],
-    percentage: Annotated[int, typer.Option("--percentage", "-p")] = 10,
+def main(  # pylint: disable=too-many-arguments
+    action: Annotated[
+        str,
+        typer.Option("--action", "-a", help="What to do with the tracker."),
+    ] = "track",
+    task: Annotated[
+        str,
+        typer.Option("--task", "-t", help="Task name or description."),
+    ] = "",
+    filename: Annotated[
+        str, typer.Option("--filename", "-f", help="CSV filename.")
+    ] = DEFAULT_FILENAME,
+    directory: Annotated[
+        str,
+        typer.Option("--directory", "-d", help="Directory to store the file."),
+    ] = "",
+    start_date: Annotated[
+        str,
+        typer.Option(
+            "--start-date", "-s", help="Start date filter (YYYY-MM-DD)."
+        ),
+    ] = "",
+    end_date: Annotated[
+        str,
+        typer.Option("--end-date", "-e", help="End date filter (YYYY-MM-DD)."),
+    ] = "",
     verbosity: Annotated[
         int, typer.Option("--verbosity", "-v", count=True)
     ] = 0,
@@ -18,12 +44,21 @@ def main(
     """Main function to call the script_profit methods."""
 
     # Do stuff here.
-    print("It worked!")
+    tracker = TimeTracker(filename=filename, directory=directory)
+    # print("It worked!")
     if verbosity > 0:
         print(f"Verbosity: {verbosity}")
         state["verbosity"] = verbosity
-    print(f"data: {data}")
-    print(f"percentage: {percentage}")
+    if action == tracker.actions.TRACK.value:
+        tracker.track(task=task)
+    elif action == tracker.actions.STATUS.value:
+        tracker.status()
+    elif action == tracker.actions.REPORT.value:
+        tracker.report(
+            filter_task=task, start_date=start_date, end_date=end_date
+        )
+    else:
+        tracker.track(task=task)
     # return call_function(state, data, percentage)
     # A comment?
     return 0
