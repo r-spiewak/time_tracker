@@ -107,8 +107,49 @@ def test_stop_tracking_updates_entry(temp_tracker):
 
 # Test these methods too:
 # ensure_file_exists
-# get_all_entries
-# get_last_entry
+
+
+def test_get_all_entries(temp_tracker):
+    """Tests the get_all_entries method."""
+    tracker = temp_tracker
+
+    manual_dict = manual_entries(tracker)
+    entries = manual_dict["entries"]
+    # all_entries = []
+    # for entry in entries:
+    #     all_entries.append(
+    #         [
+    #             entry[ColumnHeaders.START.value],
+    #             entry[ColumnHeaders.END.value],
+    #             entry[ColumnHeaders.DURATION.value],
+    #             entry[ColumnHeaders.TASK.value],
+    #         ]
+    #     )
+
+    read_entries = tracker.get_all_entries()
+    for read_entry, entry in zip(read_entries, entries):
+        for key in entry.keys():
+            assert read_entry[key] == str(entry[key])
+
+
+def test_get_last_entry(temp_tracker):
+    """Tests the get_last_entry method."""
+    tracker = temp_tracker
+
+    manual_dict = manual_entries(tracker)
+    entries = manual_dict["entries"]
+    # last_entry = [
+    #     entries[-1][ColumnHeaders.START.value],
+    #     entries[-1][ColumnHeaders.END.value],
+    #     entries[-1][ColumnHeaders.DURATION.value],
+    #     entries[-1][ColumnHeaders.TASK.value],
+    # ]
+
+    entry = tracker.get_last_entry()
+    for key in entries[  # pylint: disable=consider-iterating-dictionary
+        -1
+    ].keys():
+        assert entry[key] == str(entries[-1][key])
 
 
 def test_report_with_filters(
