@@ -264,6 +264,6 @@ def test_cli_invalid_date_filter():
 
 def test_verbosity_flag_changes_state():
     """Test that verbosity flag updates the state dictionary."""
-    result = runner.invoke(app, ["--action", "track", "-vv"])
+    result = runner.invoke(app, ["--action", "status", "-vv"])
     assert result.exit_code == 0
     assert VERBOSITY_2 in result.output
