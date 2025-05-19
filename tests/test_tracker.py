@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from time_tracker.constants import ColumnHeaders
+from time_tracker.constants import HEADERS, ColumnHeaders
 
 INVALID_DATE_FORMAT = "Invalid date format"
 NO_ENTRIES = "No matching entries"
@@ -105,8 +105,19 @@ def test_stop_tracking_updates_entry(temp_tracker):
         assert float(row[ColumnHeaders.DURATION.value]) >= 0
 
 
-# Test these methods too:
-# ensure_file_exists
+def test_ensure_file_exists(temp_tracker):
+    """Tests the ensure_file_exists method."""
+    tracker = temp_tracker
+    assert os.path.exists(tracker.filepath)
+    os.unlink(tracker.filepath)
+    assert not os.path.exists(tracker.filepath)
+    tracker.ensure_file_exists()
+    assert os.path.exists(tracker.filepath)
+
+    with open(tracker.filepath, "r", encoding="utf-8", newline="") as f:
+        lines = f.readlines()
+    assert len(lines) == 1
+    assert lines[0] == ",".join(HEADERS) + "\r\n"
 
 
 def test_get_all_entries(temp_tracker):
