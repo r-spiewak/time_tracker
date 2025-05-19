@@ -12,45 +12,8 @@ INVALID_DATE_FORMAT = "Invalid date format"
 NO_ENTRIES = "No matching entries"
 
 
-def test_start_tracking_creates_file(temp_tracker):
-    """Test that starting tracking creates the file, if not present."""
-    tracker = temp_tracker
-    # assert not os.path.exists(tracker.filepath)  # File created in __init__; can't do this.
-    test_task = "Test"
-    tracker.track(task=test_task)
-    assert os.path.exists(tracker.filepath)
-
-    with open(tracker.filepath, encoding="utf-8", newline="") as f:
-        reader = list(csv.DictReader(f))
-        assert len(reader) == 1
-        assert reader[0][ColumnHeaders.TASK.value] == test_task
-        assert reader[0][ColumnHeaders.END.value] == ""
-
-
-def test_stop_tracking_updates_entry(temp_tracker):
-    """Test that stopping timer updates the entry in the file."""
-    tracker = temp_tracker
-    tracker.track(task="Work")
-    tracker.track()
-
-    with open(tracker.filepath, encoding="utf-8", newline="") as f:
-        reader = list(csv.DictReader(f))
-        row = reader[0]
-        assert row[ColumnHeaders.END.value] != ""
-        assert float(row[ColumnHeaders.DURATION.value]) >= 0
-
-
-# Test these methods too:
-# ensure_file_exists
-# get_all_entries
-# get_last_entry
-
-
-def test_report_with_filters(
-    temp_tracker, capsys
-):  # pylint: disable=too-many-locals
-    """Test reporting with filters."""
-    tracker = temp_tracker
+def manual_entries(tracker):
+    """Create manual entries in a tracker."""
     now = datetime.now()
     task_a = "A"
     task_b = "B"
@@ -99,6 +62,68 @@ def test_report_with_filters(
         with tracker.filepath.open("a", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(line)
+    return {
+        "entries": entries,
+        "time": now,
+        "tasks": {
+            "task_a": task_a,
+            "task_b": task_b,
+        },
+        "durations": {
+            "a_1_h": a_1_h,
+            "a_2_h": a_2_h,
+            "b_2_h": b_2_h,
+        },
+    }
+
+
+def test_start_tracking_creates_file(temp_tracker):
+    """Test that starting tracking creates the file, if not present."""
+    tracker = temp_tracker
+    # assert not os.path.exists(tracker.filepath)  # File created in __init__; can't do this.
+    test_task = "Test"
+    tracker.track(task=test_task)
+    assert os.path.exists(tracker.filepath)
+
+    with open(tracker.filepath, encoding="utf-8", newline="") as f:
+        reader = list(csv.DictReader(f))
+        assert len(reader) == 1
+        assert reader[0][ColumnHeaders.TASK.value] == test_task
+        assert reader[0][ColumnHeaders.END.value] == ""
+
+
+def test_stop_tracking_updates_entry(temp_tracker):
+    """Test that stopping timer updates the entry in the file."""
+    tracker = temp_tracker
+    tracker.track(task="Work")
+    tracker.track()
+
+    with open(tracker.filepath, encoding="utf-8", newline="") as f:
+        reader = list(csv.DictReader(f))
+        row = reader[0]
+        assert row[ColumnHeaders.END.value] != ""
+        assert float(row[ColumnHeaders.DURATION.value]) >= 0
+
+
+# Test these methods too:
+# ensure_file_exists
+# get_all_entries
+# get_last_entry
+
+
+def test_report_with_filters(
+    temp_tracker, capsys
+):  # pylint: disable=too-many-locals
+    """Test reporting with filters."""
+    tracker = temp_tracker
+
+    manual_dict = manual_entries(tracker)
+    now = manual_dict["time"]
+    task_a = manual_dict["tasks"]["task_a"]
+    task_b = manual_dict["tasks"]["task_b"]
+    a_1_h = manual_dict["durations"]["a_1_h"]
+    a_2_h = manual_dict["durations"]["a_2_h"]
+    b_2_h = manual_dict["durations"]["b_2_h"]
 
     # Report without filters:
     tracker.report()
