@@ -35,6 +35,7 @@ def test_logger(test_class):
             self,
             logger_filename: str | Path | None = None,
             logger_format: str | None = None,
+            verbosity: int = 0,
         ):
             """Initialize method using custom definitions.
 
@@ -43,10 +44,13 @@ def test_logger(test_class):
                     See definition in logger.py.
                 logger_format (str | None):
                     See definition in logger.py.
+                verbosity (int):
+                    See definition in logger.py.
             """
             super().__init__(
                 logger_filename=logger_filename,
                 logger_format=logger_format,
+                verbosity=verbosity,
             )
             # super goes through this class's MRO (method resultion order).
             # An alternative would be to directly use LoggerMixin.__init__().
@@ -54,12 +58,13 @@ def test_logger(test_class):
     custom_test_class = TestClass(
         logger_filename=logger_filename,
         logger_format=logger_format,
+        verbosity=5,
     )
     custom_logfile = custom_test_class.logger_filename
     assert Path(custom_logfile).is_file()
     custom_test_class.logger.error(test_text)
     with open(custom_logfile, "r", encoding="utf8") as file:
         new_lines = file.readlines()
-    assert test_text in new_lines[0]
+    assert test_text in new_lines[3]
     custom_test_class.logger_handler.close()
     os.remove(custom_logfile)
