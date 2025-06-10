@@ -9,6 +9,34 @@ from python_template.logger import LoggerMixin
 TEST_TEXT = "Some test text."
 
 
+class CustomTestClass(LoggerMixin):  # pylint: disable=too-few-public-methods
+    """Test class for LoggerMixin."""
+
+    def __init__(
+        self,
+        logger_filename: str | Path | None = None,
+        logger_format: str | None = None,
+        verbosity: int = 0,
+    ):
+        """Initialize method using custom definitions.
+
+        Args:
+            logger_filename (str | Path | None):
+                See definition in logger.py.
+            logger_format (str | None):
+                See definition in logger.py.
+            verbosity (int):
+                See definition in logger.py.
+        """
+        super().__init__(
+            logger_filename=logger_filename,
+            logger_format=logger_format,
+            verbosity=verbosity,
+        )
+        # super goes through this class's MRO (method resultion order).
+        # An alternative would be to directly use LoggerMixin.__init__().
+
+
 def test_logger(test_class):
     """Function to test the LoggerMixin class."""
     logfile = test_class.logger_filename
@@ -32,34 +60,7 @@ def test_custom_logger():
         "%(message)s"
     )
 
-    class TestClass(LoggerMixin):  # pylint: disable=too-few-public-methods
-        """Test class for LoggerMixin."""
-
-        def __init__(
-            self,
-            logger_filename: str | Path | None = None,
-            logger_format: str | None = None,
-            verbosity: int = 0,
-        ):
-            """Initialize method using custom definitions.
-
-            Args:
-                logger_filename (str | Path | None):
-                    See definition in logger.py.
-                logger_format (str | None):
-                    See definition in logger.py.
-                verbosity (int):
-                    See definition in logger.py.
-            """
-            super().__init__(
-                logger_filename=logger_filename,
-                logger_format=logger_format,
-                verbosity=verbosity,
-            )
-            # super goes through this class's MRO (method resultion order).
-            # An alternative would be to directly use LoggerMixin.__init__().
-
-    custom_test_class = TestClass(
+    custom_test_class = CustomTestClass(
         logger_filename=logger_filename,
         logger_format=logger_format,
         verbosity=5,
