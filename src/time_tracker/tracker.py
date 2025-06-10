@@ -77,6 +77,10 @@ class TimeTracker:
             duration = (now - start_time).total_seconds()
             with self.filepath.open("r", newline="") as f:
                 lines = list(csv.reader(f))
+            last_entry_task = last_entry.get(ColumnHeaders.TASK.value, "")
+            task_entry = (
+                last_entry_task + " " + task if task else last_entry_task
+            )
             # Replace last row:
             lines[-1] = [
                 last_entry[  # pylint: disable=unsubscriptable-object
@@ -84,7 +88,7 @@ class TimeTracker:
                 ],
                 now.isoformat(),
                 f"{duration:.2f}",
-                last_entry.get(ColumnHeaders.TASK.value, ""),
+                task_entry,
             ]
             with self.filepath.open("w", newline="") as f:
                 writer = csv.writer(f)
