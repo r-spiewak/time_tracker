@@ -140,3 +140,22 @@ def test_debug_category_name_filter_invalid_enum_value():
     assert result is True
     assert hasattr(record, "debug_cat_name")
     assert record.debug_cat_name == cat_name  # pylint: disable=no-member
+
+
+def test_category_logger_kwargs_extra_none():
+    """Tests that if the 'extra' kwarg is explicitly passed as None that
+    it still appropriately gets set to a dict."""
+    custom_test_class = CustomTestClass(
+        verbosity=5,
+    )
+    custom_test_class.logger.debug_with_category(
+        TEST_TEXT,
+        category=custom_test_class.logger.debugLevels.BASIC,
+        extra=None,
+    )
+    logfile = custom_test_class.logger_filename
+    with open(logfile, "r", encoding="utf8") as file:
+        lines = file.readlines()
+    assert len(lines) == 1
+    assert TEST_TEXT in lines[0]
+    os.remove(logfile)

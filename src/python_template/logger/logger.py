@@ -130,9 +130,12 @@ class CategoryLogger(logging.Logger):
         # to get the correct caller information:
         kwargs["stacklevel"] = kwargs.get("stacklevel", 0) + 2
 
-        kwargs["extra"] = kwargs.get("extra", {})
-        if kwargs["extra"] is None:
-            kwargs["extra"] = {}
+        # kwargs["extra"] = kwargs.get("extra", {})
+        # if kwargs["extra"] is None:
+        #     kwargs["extra"] = {}
+        kwargs["extra"] = (
+            kwargs["extra"] if isinstance(kwargs.get("extra"), dict) else {}
+        )
         assert kwargs["extra"] is not None
         kwargs["extra"]["debug_category"] = category
         self.debug(msg, *args, **kwargs)
