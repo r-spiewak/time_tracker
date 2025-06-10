@@ -4,6 +4,8 @@ from typer.testing import CliRunner
 
 from python_template.run import app
 
+# from python_template import run as run_module
+
 # INVALID_PERCENTAGE = "Invalid value for '--percentage'"
 IT_WORKED = "It worked!"
 # MISSING_DATA = "Missing option '--data'"
@@ -89,3 +91,17 @@ def test_verbosity_flag_changes_state():
     result = runner.invoke(app, ["--data", "sample_data", "-vv"])
     assert result.exit_code == 0
     assert VERBOSITY_2 in result.output
+
+
+def test_run_invokes_app(mocker):
+    """Test that the run function invokes app."""
+    # mock_app_call = mocker.patch.object(run_module.app, "__call__")
+    # run_module.run()
+    mock_app_call = mocker.Mock()
+    mocker.patch("python_template.run.app", mock_app_call)
+    from python_template.run import (  # pylint: disable=import-outside-toplevel
+        run,
+    )
+
+    run()
+    mock_app_call.assert_called_once()
