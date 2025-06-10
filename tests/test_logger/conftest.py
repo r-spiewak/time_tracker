@@ -19,7 +19,9 @@ def test_class():
     test_class_instance = TestClass()
     logfile = test_class_instance.logger_filename
     yield test_class_instance
-    test_class_instance.logger_handler.close()
+    # test_class_instance.logger_handler.close()
+    for handler in test_class_instance.logger.handlers:
+        handler.close()
     if os.path.exists(logfile):
         os.remove(logfile)
 
