@@ -1,10 +1,12 @@
 """This file contains tests for the LoggerMixin class."""
 
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
 
 from python_template.logger import LoggerMixin
+from python_template.logger.logger import DebugCategoryNameFilter
 
 TEST_TEXT = "Some test text."
 
@@ -86,3 +88,40 @@ def test_custom_logger_level_clamping():
     )
     custom_logfile = custom_test_class.logger_filename
     os.remove(custom_logfile)
+
+
+def test_invalid_debug_category(test_class):
+    """Function to test that invalid debug cateogry doesn't print."""
+    logfile = test_class.logger_filename
+    test_class.logger.debug_with_category(TEST_TEXT, category="random")
+    with open(logfile, "r", encoding="utf8") as file:
+        lines = file.readlines()
+    assert len(lines) == 0
+
+
+def test_debug_category_name_filter_invalid_enum_value():
+    """Test the DebugCategoryFilter with an invalid enum value."""
+    cat_num = 999
+    cat_name = f"[DEBUG{cat_num}]"
+    # Create a dummy log record:
+    record = logging.LogRecord(
+        name="test_logger",
+        level=logging.DEBUG,
+        pathname="test_path",
+        lineno=42,
+        msg="Test log message",
+        args=(),
+        exc_info=None,
+    )
+
+    # Assign a debug_category that is invalid for the DebugCategory enum:
+    record.debug_category = cat_num
+
+    # Apply the filter:
+    debug_filter = DebugCategoryNameFilter()
+    result = debug_filter.filter(record)
+
+    # Assertions:
+    assert result is True
+    assert hasattr(record, "debug_cat_name")
+    assert record.debug_cat_name == cat_name  # pylint: disable=no-member
