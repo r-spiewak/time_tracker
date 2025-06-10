@@ -59,6 +59,24 @@ class TimeTracker(LoggerMixin):
         entries = self.get_all_entries()
         return entries[-1] if entries else None
 
+    def safe_write_csv(self, rows: list[dict], mode: str = "w"):
+        """Overwrites the CSV file with `rows`, ensuring safe CSV escaping.
+
+        Args:
+            rows (list[dict]): The rows to write.
+            mode (str): The mode of file writing (e.g., "w" for write/overwrite,
+                "a" for append). Defaults to "w".
+        """
+        append_char = "a"
+        with open(self.filepath, mode, newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=HEADERS, quoting=csv.QUOTE_MINIMAL
+            )
+            if append_char not in mode:
+                writer.writeheader()
+            for row in rows:
+                writer.writerow(row)
+
     def track(self, task: str | None = None):
         """Track a timer (and maybe task).
         Start or stop timing, depending on current status."""
@@ -81,30 +99,41 @@ class TimeTracker(LoggerMixin):
                 ]
             )
             duration = (now - start_time).total_seconds()
-            with self.filepath.open("r", newline="") as f:
-                lines = list(csv.reader(f))
+            # with self.filepath.open("r", newline="") as f:
+            #     lines = list(csv.reader(f))
+            lines = self.get_all_entries()
             last_entry_task = last_entry.get(ColumnHeaders.TASK.value, "")
             task_entry = (
                 last_entry_task + " " + task if task else last_entry_task
             )
             # Replace last row:
-            lines[-1] = [
-                last_entry[  # pylint: disable=unsubscriptable-object
+            lines[-1] = {
+                ColumnHeaders.START.value: last_entry[  # pylint: disable=unsubscriptable-object
                     ColumnHeaders.START.value
                 ],
-                now.isoformat(),
-                f"{duration:.2f}",
-                task_entry,
-            ]
-            with self.filepath.open("w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerows(lines)
+                ColumnHeaders.END.value: now.isoformat(),
+                ColumnHeaders.DURATION.value: f"{duration:.2f}",
+                ColumnHeaders.TASK.value: task_entry,
+            }
+            # with self.filepath.open("w", newline="") as f:
+            #     writer = csv.writer(f)
+            #     writer.writerows(lines)
+            self.safe_write_csv(lines)
             print(f"Stopped timer at {now}. Duration: {duration:.2f} seconds.")
         else:
             # Start new entry:
-            with self.filepath.open("a", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([now.isoformat(), "", "", task or ""])
+            new_entry = [
+                {
+                    ColumnHeaders.START.value: now.isoformat(),
+                    ColumnHeaders.END.value: "",
+                    ColumnHeaders.DURATION.value: "",
+                    ColumnHeaders.TASK.value: task or "",
+                }
+            ]
+            # with self.filepath.open("a", newline="") as f:
+            #     writer = csv.writer(f)
+            #     writer.writerow([now.isoformat(), "", "", task or ""])
+            self.safe_write_csv(new_entry, mode="a")
             print(
                 f"Started timer at {now}"
                 + (f" for task: {task}" if task else ".")
