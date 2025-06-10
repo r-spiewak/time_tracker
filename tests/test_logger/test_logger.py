@@ -6,18 +6,22 @@ from pathlib import Path
 
 from python_template.logger import LoggerMixin
 
+TEST_TEXT = "Some test text."
+
 
 def test_logger(test_class):
     """Function to test the LoggerMixin class."""
     logfile = test_class.logger_filename
     assert Path(logfile).is_file()
-    test_text = "Some test text."
-    test_class.logger.error(test_text)
+    test_class.logger.error(TEST_TEXT)
     # test_class.logger_handler.flush()
     with open(logfile, "r", encoding="utf8") as file:
         lines = file.readlines()
-    assert test_text in lines[0]
+    assert TEST_TEXT in lines[0]
 
+
+def test_custom_logger():
+    """Function to test LoggerMixin class with custom inputs."""
     # Test with custom logger_filename and logger_format:
     logger_filename = (
         f"logs/{datetime.now().strftime('%Y%m%d_%H%M%S')}_Test.log"
@@ -62,9 +66,9 @@ def test_logger(test_class):
     )
     custom_logfile = custom_test_class.logger_filename
     assert Path(custom_logfile).is_file()
-    custom_test_class.logger.error(test_text)
+    custom_test_class.logger.error(TEST_TEXT)
     with open(custom_logfile, "r", encoding="utf8") as file:
         new_lines = file.readlines()
-    assert test_text in new_lines[3]
+    assert TEST_TEXT in new_lines[3]
     custom_test_class.logger_handler.close()
     os.remove(custom_logfile)
