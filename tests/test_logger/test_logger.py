@@ -73,3 +73,16 @@ def test_custom_logger():
     assert TEST_TEXT in new_lines[3]
     custom_test_class.logger_handler.close()
     os.remove(custom_logfile)
+
+
+def test_custom_logger_level_clamping():
+    """Function to test that verbosity levels <=0 will get level BASIC."""
+    custom_test_class = CustomTestClass(
+        verbosity=-1,
+    )
+    assert (
+        custom_test_class.max_category
+        == custom_test_class.logger.debugLevels.BASIC
+    )
+    custom_logfile = custom_test_class.logger_filename
+    os.remove(custom_logfile)
