@@ -12,9 +12,10 @@ from time_tracker.constants import (
     HEADERS,
     ColumnHeaders,
 )
+from time_tracker.logger import LoggerMixin
 
 
-class TimeTracker:
+class TimeTracker(LoggerMixin):
     """TimeTracker class."""
 
     class TrackerActions(Enum):
@@ -30,6 +31,7 @@ class TimeTracker:
         directory: str | None = None,
     ):
         """Initialize class."""
+        super().__init__()
         dir_path = Path(directory) if directory else DEFAULT_OUTPUT_DIR
         self.filepath = dir_path / filename
         self.ensure_file_exists()
@@ -45,8 +47,12 @@ class TimeTracker:
 
     def get_all_entries(self) -> list[dict[str, str]]:
         """Get all entries in the file."""
-        with self.filepath.open("r", newline="") as f:
-            return list(csv.DictReader(f))
+        try:  # pylint: disable=too-many-try-statements
+            with self.filepath.open("r", newline="") as f:
+                return list(csv.DictReader(f))
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self.logger.error("⚠️ Failed to read CSV: %s", e)
+            return []
 
     def get_last_entry(self) -> dict[str, str] | None:
         """Get last entry in file."""
