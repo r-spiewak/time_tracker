@@ -1,42 +1,13 @@
 """This file contains tests for the LoggerMixin class."""
 
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 
-from python_template.logger import LoggerMixin
+# from python_template.logger import LoggerMixin
 from python_template.logger.logger import DebugCategoryNameFilter
 
 TEST_TEXT = "Some test text."
-
-
-class CustomTestClass(LoggerMixin):  # pylint: disable=too-few-public-methods
-    """Test class for LoggerMixin."""
-
-    def __init__(
-        self,
-        logger_filename: str | Path | None = None,
-        logger_format: str | None = None,
-        verbosity: int = 0,
-    ):
-        """Initialize method using custom definitions.
-
-        Args:
-            logger_filename (str | Path | None):
-                See definition in logger.py.
-            logger_format (str | None):
-                See definition in logger.py.
-            verbosity (int):
-                See definition in logger.py.
-        """
-        super().__init__(
-            logger_filename=logger_filename,
-            logger_format=logger_format,
-            verbosity=verbosity,
-        )
-        # super goes through this class's MRO (method resultion order).
-        # An alternative would be to directly use LoggerMixin.__init__().
 
 
 def test_logger(capsys, test_class):
@@ -55,7 +26,7 @@ def test_logger(capsys, test_class):
     assert existing_key_text in out
 
 
-def test_custom_logger():
+def test_custom_logger(create_custom_test_class):
     """Function to test LoggerMixin class with custom inputs."""
     # Test with custom logger_filename and logger_format:
     logger_filename = (
@@ -67,7 +38,12 @@ def test_custom_logger():
         "%(message)s"
     )
 
-    custom_test_class = CustomTestClass(
+    # custom_test_class = CustomTestClass(
+    #     logger_filename=logger_filename,
+    #     logger_format=logger_format,
+    #     verbosity=5,
+    # )
+    custom_test_class = create_custom_test_class(
         logger_filename=logger_filename,
         logger_format=logger_format,
         verbosity=5,
@@ -79,30 +55,36 @@ def test_custom_logger():
         new_lines = file.readlines()
     assert TEST_TEXT in new_lines[3]
     custom_test_class.logger_handler.close()
-    os.remove(custom_logfile)
+    # os.remove(custom_logfile)
 
 
-def test_existing_logger(test_class):
+def test_existing_logger(test_class, create_custom_test_class):
     """Test that an existing logger is used when given the same logger_filename."""
     logger_filename = test_class.logger_filename
-    custom_test_class = CustomTestClass(
+    # custom_test_class = CustomTestClass(
+    #     logger_filename=logger_filename,
+    # )
+    custom_test_class = create_custom_test_class(
         logger_filename=logger_filename,
     )
     assert custom_test_class.logger_filename == logger_filename
     assert custom_test_class.logger == test_class.logger
 
 
-def test_custom_logger_level_clamping():
+def test_custom_logger_level_clamping(create_custom_test_class):
     """Function to test that verbosity levels <=0 will get level BASIC."""
-    custom_test_class = CustomTestClass(
+    # custom_test_class = CustomTestClass(
+    #     verbosity=-1,
+    # )
+    custom_test_class = create_custom_test_class(
         verbosity=-1,
     )
     assert (
         custom_test_class.max_category
         == custom_test_class.logger.debugLevels.BASIC
     )
-    custom_logfile = custom_test_class.logger_filename
-    os.remove(custom_logfile)
+    # custom_logfile = custom_test_class.logger_filename
+    # os.remove(custom_logfile)
 
 
 def test_invalid_debug_category(test_class):
@@ -142,10 +124,13 @@ def test_debug_category_name_filter_invalid_enum_value():
     assert record.debug_cat_name == cat_name  # pylint: disable=no-member
 
 
-def test_category_logger_kwargs_extra_none():
+def test_category_logger_kwargs_extra_none(create_custom_test_class):
     """Tests that if the 'extra' kwarg is explicitly passed as None that
     it still appropriately gets set to a dict."""
-    custom_test_class = CustomTestClass(
+    # custom_test_class = CustomTestClass(
+    #     verbosity=5,
+    # )
+    custom_test_class = create_custom_test_class(
         verbosity=5,
     )
     custom_test_class.logger.debug_with_category(
@@ -158,4 +143,4 @@ def test_category_logger_kwargs_extra_none():
         lines = file.readlines()
     assert len(lines) == 1
     assert TEST_TEXT in lines[0]
-    os.remove(logfile)
+    # os.remove(logfile)
