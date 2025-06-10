@@ -144,3 +144,24 @@ def test_category_logger_kwargs_extra_none(create_custom_test_class):
     assert len(lines) == 1
     assert TEST_TEXT in lines[0]
     # os.remove(logfile)
+
+
+def test_debug_category_verbosity_help(create_test_debug_category):
+    """Tests the DebugCategory enum's get_verbosity_help method."""
+    test_debug_category = create_test_debug_category(10)
+    verbosity_help_text_len = 6
+    verbosity_levels_text = "Verbosity levels:"
+    level_1_text = f"-v: {test_debug_category.BASIC.name.title()}"
+    level_2_text = f"-vv: {test_debug_category.MODERATE.name.title()}"
+    level_3_text = f"-vvv: {test_debug_category.DETAILED.name.title()}"
+    level_4_text = f"-vvvv: {test_debug_category.VERBOSE.name.title()}"
+    level_5_text = f"-vvvvv: {test_debug_category.TRACE.name.title()}"
+    help_text = test_debug_category.get_verbosity_help()
+    lines = help_text.splitlines()
+    assert len(lines) == verbosity_help_text_len
+    assert lines[0] == verbosity_levels_text
+    assert lines[1] == level_1_text
+    assert lines[2] == level_2_text
+    assert lines[3] == level_3_text
+    assert lines[4] == level_4_text
+    assert lines[5] == level_5_text

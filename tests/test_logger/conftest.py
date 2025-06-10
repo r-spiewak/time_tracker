@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from python_template.logger import LoggerMixin
+from python_template.logger.logger import DebugCategory
 
 
 @pytest.fixture
@@ -76,3 +77,20 @@ def create_custom_test_class():
         logfile = instance.logger_filename
         if os.path.exists(logfile):
             os.remove(logfile)
+
+
+@pytest.fixture
+def create_test_debug_category():
+    """Factory fixture to create a DebugCategory class instance."""
+    instances = []
+
+    def _create_test_debug_category(v):
+        """Function to create a test DebugCategory instance."""
+        test_debug_category_instance = DebugCategory(v)
+        instances.append(test_debug_category_instance)
+        return test_debug_category_instance
+
+    yield _create_test_debug_category
+    for _ in instances:
+        # Any required cleanup goes here.
+        pass
