@@ -74,6 +74,8 @@ def create_custom_test_class():
 
     yield _create_custom_test_class
     for instance in instances:
+        for handler in instance.logger.handlers:
+            handler.close()
         logfile = instance.logger_filename
         if os.path.exists(logfile):
             os.remove(logfile)
