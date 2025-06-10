@@ -39,7 +39,7 @@ class CustomTestClass(LoggerMixin):  # pylint: disable=too-few-public-methods
         # An alternative would be to directly use LoggerMixin.__init__().
 
 
-def test_logger(test_class):
+def test_logger(capsys, test_class):
     """Function to test the LoggerMixin class."""
     logfile = test_class.logger_filename
     assert Path(logfile).is_file()
@@ -48,6 +48,11 @@ def test_logger(test_class):
     with open(logfile, "r", encoding="utf8") as file:
         lines = file.readlines()
     assert TEST_TEXT in lines[0]
+    out, _ = capsys.readouterr()
+    using_key_text = "Using logger_key:"
+    existing_key_text = "Existing keys in _loggers:"
+    assert using_key_text in out
+    assert existing_key_text in out
 
 
 def test_custom_logger():
@@ -75,6 +80,16 @@ def test_custom_logger():
     assert TEST_TEXT in new_lines[3]
     custom_test_class.logger_handler.close()
     os.remove(custom_logfile)
+
+
+def test_existing_logger(test_class):
+    """Test that an existing logger is used when given the same logger_filename."""
+    logger_filename = test_class.logger_filename
+    custom_test_class = CustomTestClass(
+        logger_filename=logger_filename,
+    )
+    assert custom_test_class.logger_filename == logger_filename
+    assert custom_test_class.logger == test_class.logger
 
 
 def test_custom_logger_level_clamping():
