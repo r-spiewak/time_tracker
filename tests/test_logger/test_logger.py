@@ -89,11 +89,12 @@ def test_custom_logger_level_clamping(create_custom_test_class):
 
 def test_invalid_debug_category(test_class):
     """Function to test that invalid debug cateogry doesn't print."""
-    logfile = test_class.logger_filename
+    logfile: Path = test_class.logger_filename
     test_class.logger.debug_with_category(TEST_TEXT, category="random")
-    with open(logfile, "r", encoding="utf8") as file:
-        lines = file.readlines()
-    assert len(lines) == 0
+    if logfile.exists():
+        with open(logfile, "r", encoding="utf8") as file:
+            lines = file.readlines()
+        assert len(lines) == 0
 
 
 def test_debug_category_name_filter_invalid_enum_value():
