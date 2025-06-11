@@ -5,6 +5,8 @@ import inspect
 from collections import defaultdict
 from typing import Any
 
+DEBUG_PRINTS = False
+
 
 def collect_init_param_names(cls: type) -> set:
     """Collect all __init__ param names (excluding 'self') from cls and ancestors."""
@@ -93,67 +95,104 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
     return result
 
 
-def _find_calling_class_from_init(instance):
+def _find_calling_class_from_init(instance):  # pylint: disable=too-complex
     """Examine classes in MRO of `instance` to find whose `__init__` contains
     a direct call to `apply_split_inits`.
     """
     apply_split_inits_name = "apply_split_inits"
     cls = type(instance)
     for base in cls.__mro__:
+        if DEBUG_PRINTS:
+            print(
+                f"\n[_find_calling_class_from_init] Inspecting parent class: {base.__name__}"
+            )
         if base is object:
+            if DEBUG_PRINTS:
+                print(
+                    f"\n[_find_calling_class_from_init] Found hierarchy pinnacle: {base.__name__}"
+                )
             continue
         if not (init := base.__dict__.get("__init__")):
+            if DEBUG_PRINTS:
+                print(
+                    f"\n[_find_calling_class_from_init] {base.__name__} has no __init__ method."
+                )
             continue
 
         try:  # pylint: disable=too-many-try-statements
             instructions = list(dis.get_instructions(init))
             for instr in instructions:
                 if (
-                    instr.opname in set("LOAD_GLOBAL", "LOAD_METHOD")
+                    instr.opname in set(["LOAD_GLOBAL", "LOAD_METHOD"])
                     and instr.argval == apply_split_inits_name
                 ):
                     return base
-        except TypeError:
+        except TypeError as e:
+            if DEBUG_PRINTS:
+                print(
+                    f"\n[_find_calling_class_from_init] Encountered TypeError: {e}"
+                )
             continue  # Skip builtins or non-Python functions
     return None
 
 
-def apply_split_inits(self, cls=None, args=(), kwargs=None, skip_class=None):
+def apply_split_inits(  # pylint: disable=too-complex,too-many-branches
+    self, cls=None, args=(), kwargs=None, skip_class=None
+):
     """Call __init__ of all base classes using split argument mapping."""
     cls = cls or type(self)
     kwargs = kwargs or {}
-    # print(f"\n[apply_split_inits] Called from class: {_find_calling_class_from_init(self)}")
-    # print(f"\n[apply_split_inits] Running for class: {cls.__name__}")
+    if DEBUG_PRINTS:
+        print(
+            f"\n[apply_split_inits] Called from class: {_find_calling_class_from_init(self)}"
+        )
+        print(f"\n[apply_split_inits] Running for class: {cls.__name__}")
     # Automatically detect skip class as the defining class of apply_split_inits:
     if skip_class is None:
-        skip_class = _find_calling_class_from_init(
-            self
-        )  #     print(f"[apply_split_inits] Auto-detected skip_class as: {skip_class.__name__}")
+        skip_class = _find_calling_class_from_init(self)
+        if DEBUG_PRINTS:
+            if skip_class is None:
+                print(
+                    "[apply_split_inits] Warning: Failed to auto-detect skip_class."
+                )
+            else:
+                print(
+                    f"[apply_split_inits] Auto-detected skip_class as: {skip_class.__name__}"
+                )
     split = split_args_for_inits_strict_kwargs(cls, args, kwargs)
     seen = set()
     for base in cls.__mro__[1:]:
         if base in (object,) or base in seen:
             continue
         if base is skip_class:
-            # print(f"[apply_split_inits] Skipping class {base.__name__}")
+            if DEBUG_PRINTS:
+                print(f"[apply_split_inits] Skipping class {base.__name__}")
             continue
         seen.add(base)
         if base in split:
             base_args = split[base]["args"]
             base_kwargs = split[base]["kwargs"]
-            # print(f"[apply_split_inits] Calling __init__ of {base.__name__} with:")
-            # print(f"    args: {base_args}")
-            # print(f"    kwargs: {base_kwargs}")
+            if DEBUG_PRINTS:
+                print(
+                    f"[apply_split_inits] Calling __init__ of {base.__name__} with:"
+                )
+                print(f"    args: {base_args}")
+                print(f"    kwargs: {base_kwargs}")
             if hasattr(base, "__init__"):
                 try:
                     # base.__init__(self, *base_args, **base_kwargs)
                     # super(base, self).__init__(self, *base_args, **base_kwargs)
                     super(base, self).__init__(*base_args, **base_kwargs)
-                except TypeError:
+                except TypeError as e:
                     # print(f"[Warning] Skipped {base.__name__} due to: {e}")
                     # continue
-                    # print(f"[apply_split_inits] TypeError using super() for {base.__name__}: {e}")
-                    # print(f"[apply_split_inits] Falling back to direct call for {base.__name__}")
+                    if DEBUG_PRINTS:
+                        print(
+                            f"[apply_split_inits] TypeError using super() for {base.__name__}: {e}"
+                        )
+                        print(
+                            f"[apply_split_inits] Falling back to direct call for {base.__name__}"
+                        )
                     # Fall back to direct init in edge cases:
                     base.__init__(  # pylint: disable=unnecessary-dunder-call
                         self, *base_args, **base_kwargs
@@ -161,7 +200,10 @@ def apply_split_inits(self, cls=None, args=(), kwargs=None, skip_class=None):
     self._init_leftovers = split.get(  # pylint: disable=protected-access
         "leftovers", {"args": [], "kwargs": {}}
     )
-    # print(f"[apply_split_inits] Leftovers set to: {self._init_leftovers}")
+    if DEBUG_PRINTS:
+        print(
+            f"[apply_split_inits] Leftovers set to: {self._init_leftovers}"  # pylint: disable=protected-access
+        )
     return self._init_leftovers  # pylint: disable=protected-access
 
 
