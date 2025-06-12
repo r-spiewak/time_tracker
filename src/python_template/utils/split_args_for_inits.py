@@ -183,13 +183,13 @@ def apply_split_inits(  # pylint: disable=too-complex,too-many-branches
         print(f"\n[apply_split_inits] Running for class: {cls.__name__}")
     # Automatically detect skip class as the defining class of apply_split_inits:
     if skip_class is None:
-        skip_class = _find_calling_class_from_init(self)
-        if DEBUG_PRINTS:
-            if skip_class is None:
+        if (skip_class := _find_calling_class_from_init(self)) is None:
+            if DEBUG_PRINTS:
                 print(
                     "[apply_split_inits] Warning: Failed to auto-detect skip_class."
                 )
-            else:
+        else:  # pylint: disable=else-if-used,confusing-consecutive-elif
+            if DEBUG_PRINTS:  # pylint: disable=confusing-consecutive-elif
                 print(
                     f"[apply_split_inits] Auto-detected skip_class as: {skip_class.__name__}"
                 )

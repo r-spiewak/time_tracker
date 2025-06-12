@@ -68,7 +68,7 @@ addopts = "--basetemp=/tmp/pytest"
 
 [tool.coverage.run]
 source = ["src", "tests"]
-omit = ["tests/**/conftest.py"]
+omit = ["tests/**/conftest.py", "tests/*"]
 # For avoiding sqlite3 concurrency issues on CIFS drives:
 data_file = "/tmp/python_template/.coverage"
 
