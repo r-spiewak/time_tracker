@@ -86,6 +86,7 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         # Bind args
         bound_args = []
         bound_kwargs = {}
+        params_assigned_positionally = []
         param_iter = (
             p
             for p in params
@@ -94,6 +95,7 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         for p in param_iter:
             if remaining_args:
                 bound_args.append(remaining_args.pop(0))
+                params_assigned_positionally.append(p.name)
             elif p.name in remaining_kwargs:
                 # There's an arg necessary, but it's not in args, so check kwargs:
                 bound_kwargs[p.name] = remaining_kwargs.pop(p.name)
@@ -108,7 +110,10 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
             if p.kind in (p.KEYWORD_ONLY, p.POSITIONAL_OR_KEYWORD)
         }
         for key in list(remaining_kwargs):
-            if key in keyword_params:
+            if (
+                key in keyword_params
+                and key not in params_assigned_positionally
+            ):
                 bound_kwargs[key] = remaining_kwargs.pop(key)
 
         # If accepts **kwargs, only pass keys that base class (or its ancestors) can use:
@@ -117,7 +122,10 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
                 param_cache[base] = collect_init_param_names(base)
             accepted_keys = param_cache[base]
             for key in list(remaining_kwargs):
-                if key in accepted_keys:
+                if (
+                    key in accepted_keys
+                    and key not in params_assigned_positionally
+                ):
                     bound_kwargs[key] = remaining_kwargs.pop(key)
 
         result[base]["args"].extend(bound_args)  # type: ignore[union-attr]

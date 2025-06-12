@@ -703,31 +703,54 @@ def test_split_leftovers_preserved():
     }
 
 
-# # This test is wrong. AcceptsKwargs will get nothing,
-# # and AcceptsDirect will get both "check" and "value" for target.
-# def test_var_kwarg_binding_within_accepted_keys():
-#     class AcceptsKwargs:
-#         def __init__(self, **kwargs):
-#             self.caught = kwargs.get("target", None)
+def test_var_kwarg_binding_within_accepted_keys():
+    """Test that when a positional arg and kwarg (by name) are both given,
+    positional arg takes precedence and kwarg goes into leftovers."""
 
-#     class AcceptsDirect:
-#         def __init__(self, target): self.target = target
+    class AcceptsKwargs:  # pylint: disable=too-few-public-methods
+        """Class that accepts kwargs."""
 
-#     class Combiner(AcceptsDirect, AcceptsKwargs):
-#         def __init__(self, *args, **kwargs):
-#             self.split = split_args_for_inits_strict_kwargs(type(self), args, kwargs)
-#             AcceptsDirect.__init__(
-#                 self, *self.split[AcceptsDirect]["args"], **self.split[AcceptsDirect]["kwargs"]
-#             )
-#             AcceptsKwargs.__init__(
-#                 self, *self.split[AcceptsKwargs]["args"], **self.split[AcceptsKwargs]["kwargs"]
-#             )
-#             self.leftovers = self.split["leftovers"]
+        def __init__(self, **kwargs):
+            self.caught = kwargs.get("target", None)
 
-#     c = Combiner("value", target="check", unused="meh")
-#     assert c.target == "value"
-#     assert c.caught == "check"
-#     assert c.leftovers["kwargs"] == {"unused": "meh"}
+    class AcceptsDirect:  # pylint: disable=too-few-public-methods
+        """Class that accepts a positional arg."""
+
+        def __init__(self, target):
+            self.target = target
+
+    class Combiner(
+        AcceptsDirect, AcceptsKwargs
+    ):  # pylint: disable=too-few-public-methods
+        """Class to combine AcceptsDirect and AcceptsKwargs."""
+
+        def __init__(self, *args, **kwargs):
+            self.split = split_args_for_inits_strict_kwargs(
+                type(self), args, kwargs
+            )
+            AcceptsDirect.__init__(
+                self,
+                *self.split[AcceptsDirect]["args"],
+                **self.split[AcceptsDirect]["kwargs"],
+            )
+            AcceptsKwargs.__init__(
+                self,
+                *self.split[AcceptsKwargs]["args"],
+                **self.split[AcceptsKwargs]["kwargs"],
+            )
+            self.leftovers = self.split["leftovers"]
+
+    val = "value"
+    check = "check"
+    unused = "meh"
+    c = Combiner(val, target=check, unused=unused)
+    assert c.target == val
+    # This test is wrong. AcceptsKwargs will get nothing,
+    # and AcceptsDirect will get both "check" and "value" for target
+    # (and then put back "check").
+    # assert c.caught == "check"
+    assert not c.caught
+    assert c.leftovers["kwargs"] == {"target": check, "unused": unused}
 
 
 # if __name__ == "__main__":
