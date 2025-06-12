@@ -5,7 +5,7 @@ import inspect
 from collections import defaultdict
 from typing import Any
 
-DEBUG_PRINTS = False
+DEBUG_PRINTS = True
 
 
 def collect_init_param_names(cls: type) -> set:
@@ -25,7 +25,7 @@ def collect_init_param_names(cls: type) -> set:
     return names
 
 
-def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-complex
+def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-complex,too-many-branches
     cls: type,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
@@ -33,9 +33,39 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
 ) -> dict[type, dict[str, Any]]:
     """Split args/kwargs across MRO classes, and only pass **kwargs
     to a class if it (or its parents) will actually use them.
+
+    Notes: The following caveats should be respected:
+     - The desired initialization order must be manually respected, since this
+       bypasses the MRO. So if one parent depends on another being initialized
+       first, ensure that the correct parent is initialized first in the order
+       of parent __init__ calls.
+     - Any parent class that uses super().__init__() may still try to call its
+       own parent (though I think this is the intended behavior). Since we're
+       calling its __init__ directly, it may
+        - Skip expected initialization (since we short-circuit the super chain)
+        - Double-call something if one of the manual __init__ calls followed by
+          super() ends up calling the same thing again.
+
+    Usage example:
+    class Child(Parent1, Parent2):
+        def __init__(self, *args, **kwargs):
+            self.split = split_args_for_inits_strict_kwargs(
+                type(self), args, kwargs
+            )
+            Parent1.__init__(
+                self, *self.split[Parent1]["args"], **self.split[Parent1]["kwargs"]
+            )
+            Parent2.__init__(
+                self, *self.split[Parent2]["args"], **self.split[Parent2]["kwargs"]
+            )
+            self._init_leftovers = self.split["leftovers"]
     """
     remaining_args = list(args)
     remaining_kwargs = dict(kwargs)
+    if DEBUG_PRINTS:
+        print("[split_args_for_inits_strict_kwargs] Splitting with:")
+        print(f"    args: {remaining_args}")
+        print(f"    kwargs: {remaining_kwargs}")
     result: defaultdict[Any, dict[str, list[Any] | dict[Any, Any]]] = (
         defaultdict(lambda: {"args": [], "kwargs": {}})
     )
@@ -55,6 +85,7 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
 
         # Bind args
         bound_args = []
+        bound_kwargs = {}
         param_iter = (
             p
             for p in params
@@ -63,6 +94,10 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         for p in param_iter:
             if remaining_args:
                 bound_args.append(remaining_args.pop(0))
+            elif p.name in remaining_kwargs:
+                # There's an arg necessary, but it's not in args, so check kwargs:
+                bound_kwargs[p.name] = remaining_kwargs.pop(p.name)
+                # bound_args.append(remaining_kwargs.pop(p.name))
             else:
                 break
 
@@ -72,7 +107,6 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
             for p in params
             if p.kind in (p.KEYWORD_ONLY, p.POSITIONAL_OR_KEYWORD)
         }
-        bound_kwargs = {}
         for key in list(remaining_kwargs):
             if key in keyword_params:
                 bound_kwargs[key] = remaining_kwargs.pop(key)
@@ -179,10 +213,16 @@ def apply_split_inits(  # pylint: disable=too-complex,too-many-branches
                 print(f"    args: {base_args}")
                 print(f"    kwargs: {base_kwargs}")
             if hasattr(base, "__init__"):
-                try:
+                try:  # pylint: disable=too-many-try-statements
                     # base.__init__(self, *base_args, **base_kwargs)
+                    # if DEBUG_PRINTS:
+                    #     print(f"[apply_split_inits] __init__ call succeeded for {base.__name__}.")
                     # super(base, self).__init__(self, *base_args, **base_kwargs)
                     super(base, self).__init__(*base_args, **base_kwargs)
+                    if DEBUG_PRINTS:
+                        print(
+                            f"[apply_split_inits] super() call succeeded for {base.__name__}."
+                        )
                 except TypeError as e:
                     # print(f"[Warning] Skipped {base.__name__} due to: {e}")
                     # continue
@@ -193,10 +233,29 @@ def apply_split_inits(  # pylint: disable=too-complex,too-many-branches
                         print(
                             f"[apply_split_inits] Falling back to direct call for {base.__name__}"
                         )
-                    # Fall back to direct init in edge cases:
-                    base.__init__(  # pylint: disable=unnecessary-dunder-call
-                        self, *base_args, **base_kwargs
-                    )
+                    try:
+                        # Fall back to direct init in edge cases:
+                        base.__init__(  # pylint: disable=unnecessary-dunder-call
+                            self, *base_args, **base_kwargs
+                        )
+                    except (  # pylint: disable=broad-exception-caught
+                        Exception
+                    ) as e1:
+                        if DEBUG_PRINTS:
+                            print(
+                                f"[apply_split_inits] Direct call failed for {base.__name__}: {e1}"
+                            )
+    #         args_for_super.extend(base_args)
+    #         kwargs_for_super.update(base_kwargs)
+    # # One and only call to super()
+    # try:
+    #     super(cls, self).__init__(*args_for_super, **kwargs_for_super)
+    #     if DEBUG_PRINTS:
+    #         print(f"[apply_split_inits] super() call succeeded for {cls.__name__}.")
+    # except TypeError as e:
+    #     if DEBUG_PRINTS:
+    #         print(f"[apply_split_inits] TypeError in super call: {e}")
+    #     raise
     self._init_leftovers = split.get(  # pylint: disable=protected-access
         "leftovers", {"args": [], "kwargs": {}}
     )
@@ -210,6 +269,27 @@ def apply_split_inits(  # pylint: disable=too-complex,too-many-branches
 class SplitInitMixin:  # pylint: disable=too-few-public-methods
     """A mixin class to be used for automatically splitting args across inits.
 
+    Note: this mixin class is not perfect, and will fail under certain circumstances:
+     - If some parent class has only positional arguments and comes before another
+       parent class with kwargs, the first parent may fail to initialize (whether or not it
+       calls super).
+     - Calling super().__init__() in apply_split_inits can skip the init methods
+       for the direct parent classes, so they won't get ininialized.
+     - Changing the calls in apply_split_inits from super().__init__() to
+       calling the init of each parent directly results in recursion.
+     - Changing the calls in apply_split_inits from super().__init__() to
+       calling the super().__init__() once also results in recursion.
+    The big dilema is we want
+     - To automate splitting and routing *args and **kwargs to multiple __init__ methods.
+     - To work cooperatively with super(), without requiring all third-party classes to cooperate.
+     - To avoid recursion and ensure each __init__ is called exactly once.
+     - To not manually walk the MRO, because that breaks super() semantics and third-party
+       expectations.
+    So we can't really have all three of the following at the same time, only two:
+     - Automatic argument splitting
+     - Compatibility with arbitrary third-party __init__ methods
+     - Full preservation of Python's super()
+
     Usage example:
     class Child(SplitInitMixin, Parent1, Parent2):
         def __init__(self, *args, **kwargs):
@@ -219,13 +299,34 @@ class SplitInitMixin:  # pylint: disable=too-few-public-methods
 
     def __init__(self, *args, **kwargs):
         """New init for the class."""
-        apply_split_inits(
+        self._init_leftovers = apply_split_inits(
             self, cls=type(self), args=args, kwargs=kwargs
         )  # , skip_class=SplitInitMixin)
 
 
 def auto_split_init(cls):
     """A decorator to be used for automatically splitting args across inits.
+
+    Note: this decorator is not perfect, and will fail under certain circumstances:
+     - If some parent class has only positional arguments and comes before another
+       parent class with kwargs, the first parent may fail to initialize (whether or not it
+       calls super).
+     - Calling super().__init__() in apply_split_inits can skip the init methods
+       for the direct parent classes, so they won't get ininialized.
+     - Changing the calls in apply_split_inits from super().__init__() to
+       calling the init of each parent directly results in recursion.
+     - Changing the calls in apply_split_inits from super().__init__() to
+       calling the super().__init__() once also results in recursion.
+    The big dilema is we want
+     - To automate splitting and routing *args and **kwargs to multiple __init__ methods.
+     - To work cooperatively with super(), without requiring all third-party classes to cooperate.
+     - To avoid recursion and ensure each __init__ is called exactly once.
+     - To not manually walk the MRO, because that breaks super() semantics and third-party
+       expectations.
+    So we can't really have all three of the following at the same time, only two:
+     - Automatic argument splitting
+     - Compatibility with arbitrary third-party __init__ methods
+     - Full preservation of Python's super()
 
     Usage example:
     @auto_split_init
