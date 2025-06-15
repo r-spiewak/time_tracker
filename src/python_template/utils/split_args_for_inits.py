@@ -61,7 +61,7 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
             Parent2.__init__(
                 self, *self.split[Parent2]["args"], **self.split[Parent2]["kwargs"]
             )
-            self._init_leftovers = self.split["leftovers"]
+            self._init_leftovers = self.split[LEFTOVERS]
 
     Args:
         cls (type): The class type (e.g., "type(self)").
@@ -84,12 +84,21 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         print(f"    args: {remaining_args}")
         print(f"    kwargs: {remaining_kwargs}")
     result: defaultdict[Any, dict[str, list[Any] | dict[Any, Any]]] = (
-        defaultdict(lambda: {"args": [], "kwargs": {}})
+        defaultdict(
+            lambda: {
+                "args": [],
+                "kwargs": {},
+                "args_assigned_positionally": [],
+            }
+        )
     )
     param_cache = {}
 
+    # params_assigned_positionally = {}
+
     # for base in cls.__mro__[1:]:  # Skip the class itself
     for base in cls.__bases__:  # Only look at the bases of this class.
+        # params_assigned_positionally[base] = []
         if base is stop_at:
             break
         if not (init := base.__dict__.get("__init__", None)):
@@ -104,7 +113,6 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         # Bind args
         bound_args = []
         bound_kwargs = {}
-        params_assigned_positionally = []
         # 1. Route positional args:
         param_iter = (
             p
@@ -114,7 +122,10 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         for p in param_iter:
             if remaining_args:
                 bound_args.append(remaining_args.pop(0))
-                params_assigned_positionally.append(p.name)
+                # params_assigned_positionally[base].append(p.name)
+                result[base]["args_assigned_positionally"].append(  # type: ignore[union-attr]
+                    p.name
+                )
             elif p.name in remaining_kwargs:
                 # There's an arg necessary, but it's not in args, so check kwargs:
                 bound_kwargs[p.name] = remaining_kwargs.pop(p.name)
@@ -131,7 +142,8 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
         for key in list(remaining_kwargs):
             if (
                 key in keyword_params
-                and key not in params_assigned_positionally
+                # and key not in params_assigned_positionally[base]
+                and key not in result[base]["args_assigned_positionally"]
             ):
                 bound_kwargs[key] = remaining_kwargs.pop(key)
 
@@ -143,7 +155,8 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
             for key in list(remaining_kwargs):
                 if (
                     key in accepted_keys
-                    and key not in params_assigned_positionally
+                    # and key not in params_assigned_positionally[base]
+                    and key not in result[base]["args_assigned_positionally"]
                 ):
                     bound_kwargs[key] = remaining_kwargs.pop(key)
 
@@ -162,13 +175,15 @@ def split_args_for_inits_strict_kwargs(  # pylint: disable=too-many-locals,too-c
     for base in safe_receivers:
         # for k in list(remaining_kwargs):
         for k, v in remaining_kwargs.items():
-            # Pass leftovers to first safe_reciever:
-            # result[base][k] = remaining_kwargs.pop(k)
-            # Pass leftovers to all safe_recievers:
-            result[base]["kwargs"][k] = v  # type: ignore[call-overload]
+            # if k not in params_assigned_positionally[base]:
+            if k not in result[base]["args_assigned_positionally"]:
+                # Pass leftovers to first safe_reciever:
+                # result[base][k] = remaining_kwargs.pop(k)
+                # Pass leftovers to all safe_recievers:
+                result[base]["kwargs"][k] = v  # type: ignore[call-overload]
 
     # if remaining_args or remaining_kwargs:
-    result["leftovers"] = {"args": remaining_args, "kwargs": remaining_kwargs}
+    result[LEFTOVERS] = {"args": remaining_args, "kwargs": remaining_kwargs}
 
     return result
 
@@ -324,6 +339,8 @@ def share_missing_params_across_parents(
                 if (
                     source_cls != parent
                     and pname in split[source_cls]["kwargs"]
+                    and pname
+                    not in split[parent]["args_assigned_positionally"]
                 ):
                     data["kwargs"][pname] = args_dicts["kwargs"][pname]
                     break
