@@ -9,8 +9,8 @@ from python_template.utils import (
     split_args_for_inits_strict_kwargs,
 )
 from python_template.utils.split_args_for_inits import (
-    _find_calling_class_from_init,
-    apply_split_inits,
+    _find_calling_class_from_init_old,
+    apply_split_inits_old,
 )
 
 # Classes for tests:
@@ -182,11 +182,11 @@ class D1(A1, B1):  # pylint: disable=too-few-public-methods
         pass
 
 
-class DummyWithApply:  # pylint: disable=too-few-public-methods
+class DummyWithApplyOld:  # pylint: disable=too-few-public-methods
     """Dummy class using the apply_split_inits method."""
 
     def __init__(self, *args, **kwargs):
-        apply_split_inits(self, args=args, kwargs=kwargs)
+        apply_split_inits_old(self, args=args, kwargs=kwargs)
 
 
 class E(A, B):  # pylint: disable=too-few-public-methods
@@ -236,7 +236,7 @@ class M(SplitInitMixin):  # pylint: disable=too-few-public-methods
     """Class inheriting SplitInitMixin and calling apply_split_inits."""
 
     def __init__(self):  # pylint: disable=super-init-not-called
-        apply_split_inits(self)
+        apply_split_inits_old(self)
 
 
 class M1:  # pylint: disable=too-few-public-methods
@@ -304,7 +304,7 @@ class Skip(SplitInitMixin):  # pylint: disable=too-few-public-methods
     """Class with a defined skip class."""
 
     def __init__(self):  # pylint: disable=super-init-not-called
-        apply_split_inits(self, skip_class=Skip)
+        apply_split_inits_old(self, skip_class=Skip)
 
 
 # Full tests
@@ -370,11 +370,11 @@ def test_auto_split_init():
 # Line tests
 
 
-#  78: positive branch of if not (init := base.__dict__.get("__init__", None)):
+#  94: positive branch of if not (init := base.__dict__.get("__init__", None)):
 # This I think is covered by the test for line 149 below?
 
 
-#  94: positive branch of if remaining_args:
+# 114: positive branch of if remaining_args:
 def test_split_args_with_positional_args():
     """Test: Positional argument matching (covers if remaining_args: branch)"""
 
@@ -386,7 +386,7 @@ def test_split_args_with_positional_args():
     assert result["leftovers"]["kwargs"] == {"x": 42}
 
 
-# 112:* positive branch of if key in keyword_params:
+# 131: positive branch of if key in keyword_params:
 def test_split_args_with_kwarg_param():
     """Test: positive branch of if key in keyword_params"""
     a_val = 10
@@ -409,7 +409,7 @@ def test_bind_kwargs_from_remaining():
     assert obj.leftovers["kwargs"] == {"bk": bk, "unused": unused}
 
 
-# 121: positive branch of if key in accepted_keys:
+# 143: positive branch of if key in accepted_keys:
 def test_split_args_with_filtered_kwargs():
     """Test: Accepted key filtering (covers if key in accepted_keys:)"""
     args = []
@@ -428,7 +428,7 @@ def test_split_args_with_filtered_kwargs():
     }
 
 
-# 149: positive branches of if not (init := base.__dict__.get("__init__")):
+# 464: positive branches of if not (init := base.__dict__.get("__init__")):
 def test_split_args_with_no_init():
     """Test: Class with no __init__"""
     result = split_args_for_inits_strict_kwargs(EmptyDummy, [1], {"x": 2})
@@ -436,23 +436,23 @@ def test_split_args_with_no_init():
     assert result["leftovers"]["kwargs"] == {"x": 2}
 
 
-# 164: raise TypeError handling
+# 479: raise TypeError handling
 def test_split_args_with_var_kwargs():
     """Test: Class with **kwargs"""
     result = split_args_for_inits_strict_kwargs(AcceptsAllDummy, [], {"z": 1})
-    assert result[AcceptsAll]["kwargs"] == {}
+    assert result[AcceptsAll]["kwargs"] == {"z": 1}
     assert result["leftovers"]["kwargs"] == {"z": 1}
 
 
 def test_find_calling_class_typeerror_branch():
     """Test that should raise TypeError and hit that branch."""
     instance = BuiltinTypeClass()
-    result = _find_calling_class_from_init(instance)
+    result = _find_calling_class_from_init_old(instance)
     assert result is None
 
 
-# 187: if skip_class is None: (which means _find_calling_class_from_init failed)
-def test_apply_split_inits_skip_class_none_branch(monkeypatch):
+# 500: if skip_class is None: (which means _find_calling_class_from_init failed)
+def test_apply_split_inits_old_skip_class_none_branch(monkeypatch):
     """Test forcing the _find_calling_class_from_init to fail."""
 
     class X:  # pylint: disable=too-few-public-methods
@@ -473,7 +473,7 @@ def test_apply_split_inits_skip_class_none_branch(monkeypatch):
         def __init__(
             self, *args, **kwargs
         ):  # pylint: disable=super-init-not-called
-            apply_split_inits(self, args=args, kwargs=kwargs)
+            apply_split_inits_old(self, args=args, kwargs=kwargs)
 
     # Force _find_calling_class_from_init to raise TypeError
     monkeypatch.setattr(
@@ -486,8 +486,8 @@ def test_apply_split_inits_skip_class_none_branch(monkeypatch):
     assert hasattr(z, "bar")
 
 
-# 241: except exception (after already excepting TypeError earlier)
-def test_apply_split_inits_direct_call_fallback(monkeypatch):
+# 556: except exception (after already excepting TypeError earlier)
+def test_apply_split_inits_old_direct_call_fallback(monkeypatch):
     """Test: super fails, then base.__init__ raises an exception."""
     # Patch super() to raise TypeError for test coverage
     original_super = super
@@ -514,7 +514,7 @@ def test_apply_split_inits_direct_call_fallback(monkeypatch):
         def __init__(
             self, *args, **kwargs
         ):  # pylint: disable=super-init-not-called
-            apply_split_inits(self, args=args, kwargs=kwargs)
+            apply_split_inits_old(self, args=args, kwargs=kwargs)
 
     fortytwo = 42
     f = FailSuper(bar=fortytwo)
@@ -528,28 +528,28 @@ def test_apply_split_inits_direct_call_fallback(monkeypatch):
 
 def test_find_calling_class_success():
     """Test ensuring _find_calling_class succeeds."""
-    dummy = DummyWithApply()
-    cls = _find_calling_class_from_init(dummy)
-    assert cls is DummyWithApply
+    dummy = DummyWithApplyOld()
+    cls = _find_calling_class_from_init_old(dummy)
+    assert cls is DummyWithApplyOld
 
 
 def test_find_calling_class_skips_no_init():
     """Test: Class with no init"""
     obj = NoInit()
-    assert _find_calling_class_from_init(obj) is None
+    assert _find_calling_class_from_init_old(obj) is None
 
 
 def test_find_calling_class_handles_typeerror():
     """Test: Class with non-introspectable init (simulate TypeError)"""
     # Simulate with a built-in that raises TypeError on inspection
     obj = BuiltinWrapper()
-    assert _find_calling_class_from_init(obj) is None
+    assert _find_calling_class_from_init_old(obj) is None
 
 
 def test_find_calling_class_positive():
     """Test: Positive detection (init calls apply_split_inits)."""
     obj = M()
-    assert _find_calling_class_from_init(obj) == M
+    assert _find_calling_class_from_init_old(obj) == M
 
 
 # apply_split_inits tests
@@ -572,7 +572,11 @@ def test_split_args_for_inits_applies_init_properly():
     three = 3
     e = E1(a=a_val, b=b_val, c=c_val)
     assert e._a == a_val  # pylint: disable=protected-access
-    assert not e._b_kwargs  # pylint: disable=protected-access
+    # assert not e._b_kwargs  # pylint: disable=protected-access
+    assert e._b_kwargs == {
+        "b": b_val,
+        "c": c_val,
+    }  # pylint: disable=protected-access
     assert not hasattr(e, "_init_leftovers")
     assert len(e.split) == three
     assert e.split["leftovers"]["kwargs"]["b"] == b_val
@@ -599,11 +603,13 @@ def test_apply_split_inits_correctly_applies_and_sets_leftovers():
     c = C1(a=1, b=2, c=3)
     # Ideally we would want this to exist, but due to the described conditions
     # A1 is never initialized.
-    # assert c._a == 1
-    assert not hasattr(c, "_a")
+    # But with the nwe version, we're ok!
+    assert c._a == 1  # pylint: disable=protected-access
+    # assert not hasattr(c, "_a")
     # Note how it passes the params for A1 to B1:
-    # assert c._b_kwargs == {"b": 2, "c": 3}  # pylint: disable=protected-access
-    assert c._b_kwargs == {"a": 1}  # pylint: disable=protected-access
+    # Not anymore!
+    assert c._b_kwargs == {"b": 2, "c": 3}  # pylint: disable=protected-access
+    # assert c._b_kwargs == {"a": 1}  # pylint: disable=protected-access
     # Note how it then leaves the B1 params as leftovers:
     assert c._init_leftovers == {  # pylint: disable=protected-access
         "args": [],
@@ -618,13 +624,15 @@ def test_auto_split_init_decorator_behavior():
     d = D1(a=1, extra="stuff")
     # Ideally we would want this to exist, but due to the described conditions
     # A1 is never initialized.
-    # assert d._a == 1
-    assert not hasattr(d, "_a")
+    # Nut with the new version, now we're ok!
+    assert d._a == 1  # pylint: disable=protected-access
+    # assert not hasattr(d, "_a")
     # Note how it passes the params for A1 to B1:
-    # assert d._b_kwargs == {  # pylint: disable=protected-access
-    #     "extra": "stuff"
-    # }
-    assert d._b_kwargs == {"a": 1}  # pylint: disable=protected-access
+    # Not anymore!
+    assert d._b_kwargs == {  # pylint: disable=protected-access
+        "extra": "stuff"
+    }
+    # assert d._b_kwargs == {"a": 1}  # pylint: disable=protected-access
     assert hasattr(d, "_init_leftovers")
     # Note how it then still leaves the extra params as leftovers:
     assert d._init_leftovers == {  # pylint: disable=protected-access,no-member
@@ -695,8 +703,9 @@ def test_split_leftovers_preserved():
     # This isn't what happens either,
     # since the B parent accepts **kwargs but doen't call a parent,
     # so **kwargs aren't actually passed to it.
-    # assert obj.extra == "hello"
-    assert not obj.extra
+    # Now it does, so this is fine.
+    assert obj.extra == extra
+    # assert not obj.extra
     assert obj.leftovers["kwargs"] == {
         "extra": extra,
         "unknown_kwarg": ninetynine,
@@ -748,8 +757,9 @@ def test_var_kwarg_binding_within_accepted_keys():
     # This test is wrong. AcceptsKwargs will get nothing,
     # and AcceptsDirect will get both "check" and "value" for target
     # (and then put back "check").
-    # assert c.caught == "check"
-    assert not c.caught
+    # But with the new version, this works as expected.
+    assert c.caught == check
+    # assert not c.caught
     assert c.leftovers["kwargs"] == {"target": check, "unused": unused}
 
 
