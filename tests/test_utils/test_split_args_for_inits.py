@@ -2,6 +2,8 @@
 in the split_args_for_inits module."""  # pylint: disable=too-many-lines
 
 import builtins
+import dis
+import inspect
 
 from python_template.utils import (
     LEFTOVERS,
@@ -14,6 +16,8 @@ from python_template.utils import (
 # _find_calling_class_from_init_old,; apply_split_inits_old,
 from python_template.utils.split_args_for_inits import (  # pylint: disable=unused-import;
     _find_calling_class_from_init,
+    apply_dis_bytecode_routing,
+    apply_type_heuristic_routing,
     call_init_chain_respecting_super,
     find_safe_kwargs_targets,
     share_missing_params_across_parents,
@@ -334,11 +338,34 @@ class Test__find_calling_class_from_init:  # pylint:disable=invalid-name,too-few
     ):  # pylint: disable=too-few-public-methods
         """Wrapper for a builtin class."""
 
-    def test_find_calling_class_handles_typeerror(self):
+    class BuiltinWrapperAgain(
+        BuiltinWrapper
+    ):  # pylint: disable=too-few-public-methods
+        """Wrapper for a builtin class."""
+
+        def __init__(self):
+            # apply_split_inits(self)
+            pass
+
+    def test_find_calling_class_handles_typeerror(self, monkeypatch):
         """Test: Class with non-introspectable init (simulate TypeError)"""
         # Simulate with a built-in that raises TypeError on inspection
         obj = self.BuiltinWrapper()
         assert _find_calling_class_from_init(obj) is None
+        # The above doesn't actually trigger the TypeError.
+        # Instead, I'll monkeypatch...
+        obj2 = self.BuiltinWrapperAgain()
+        orig_getsourcefile = dis.get_instructions
+        monkeypatch.setattr(
+            "dis.get_instructions",
+            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+            lambda self: TypeError,
+        )
+        assert _find_calling_class_from_init(obj2) is None
+        monkeypatch.setattr(
+            "dis.get_instructions",
+            orig_getsourcefile,
+        )
 
     # class M(SplitInitMixin):  # pylint: disable=too-few-public-methods
     class M:  # pylint: disable=too-few-public-methods
@@ -352,6 +379,62 @@ class Test__find_calling_class_from_init:  # pylint:disable=invalid-name,too-few
         """Test: Positive detection (init calls apply_split_inits)."""
         obj = self.M()
         assert _find_calling_class_from_init(obj) == self.M
+
+
+class Test_uses_super:  # pylint: disable=invalid-name
+    """Tests for uses_super function."""
+
+    @staticmethod
+    def test_uses_super_getsourcefile_none(monkeypatch):
+        """Test uses_super when getsourcefile returns None."""
+        # Create a class dynamically (no source file associated):
+        DynamicClass = type(
+            "DynamicClass", (object,), {"__init__": lambda self: None}
+        )
+        orig_getsourcefile = inspect.getsourcefile
+        monkeypatch.setattr(
+            "inspect.getsourcefile",
+            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+            lambda self: None,
+        )
+        result = uses_super(DynamicClass)
+        monkeypatch.setattr(
+            "inspect.getsourcefile",
+            orig_getsourcefile,
+        )
+        assert not result
+
+    @staticmethod
+    def test_uses_super_triggers_exception(monkeypatch):
+        """Test uses_super triggering exception."""
+        # Create a class dynamically (no source file associated):
+        DynamicClass = type(
+            "DynamicClass", (object,), {"__init__": lambda self: None}
+        )
+
+        # # Sanity check: this class doesn't use super():
+        # assert (not hasattr(DynamicClass, '__module__')) and DynamicClass.__module__ == "__main__"
+
+        # When passed to uses_super, this should trigger the exception path:
+        result = uses_super(DynamicClass)
+
+        # The function should fail gracefully and return False:
+        assert result is False
+
+        # Since the above didn't actually trigger the exception,
+        # we'll mokeypatch inspect.getsourcefile to raise an exception:
+        orig_getsourcefile = inspect.getsourcefile
+        monkeypatch.setattr(
+            "inspect.getsourcefile",
+            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+            lambda self: ValueError,
+        )
+        result = uses_super(DynamicClass)
+        monkeypatch.setattr(
+            "inspect.getsourcefile",
+            orig_getsourcefile,
+        )
+        assert not result
 
 
 class Test_apply_split_inits:  # pylint: disable=invalid-name
@@ -390,6 +473,100 @@ class Test_apply_split_inits:  # pylint: disable=invalid-name
 
         z = Z(1, bar=5)
         assert hasattr(z, "bar")
+
+
+class Test_apply_type_heuristic_routing:  # pylint: disable=invalid-name
+    """Tests for apply_type_heuristic_routing."""
+
+    def test_apply_type_heuristic_routing_positive_branch(self):
+        """Test positive branch."""
+        x = "x"
+        onetwothree = 123
+
+        class Parent:
+            """Parent class."""
+
+            def __init__(
+                self, x: int = 0, **kwargs
+            ):  # pylint: disable=unused-argument
+                self.x = x
+
+        class Child(Parent):
+            """Child class."""
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        remaining = {x: onetwothree}
+        routing = {
+            Parent: {"args": [], "kwargs": {}},
+            Child: {"args": [], "kwargs": {}},
+        }
+
+        # # Add dummy get_mro_kwarg_info if needed:
+        # def mock_get_mro_kwarg_info(cls):
+        #     """Dummy get_mro_kwarg_info."""
+        #     return {Parent: ({"x"}, True), Child: (set(), True)}
+
+        # # Monkeypatch if needed
+        # import your_module
+        # your_module.get_mro_kwarg_info = mock_get_mro_kwarg_info
+
+        apply_type_heuristic_routing(Child, remaining, routing)
+
+        assert x not in remaining
+        assert routing[Parent]["kwargs"][x] == onetwothree
+
+
+class Test_apply_dis_bytecode_routing:  # pylint: disable=invalid-name
+    """Tests for apply_dis_bytecode_routing."""
+
+    @staticmethod
+    def test_apply_dis_bytecode_routing_exception_branch(monkeypatch):
+        """Test exception branch."""
+        x = "x"
+
+        class BrokenBase:
+            """Class with a broken init."""
+
+            __init__ = eval(  # pylint: disable=eval-used
+                "lambda self, **kwargs: None"
+            )  # dynamically created
+
+        class Child(BrokenBase):
+            """Wrapper class around BrokenBase."""
+
+        remaining = {x: 42}
+        routing = {
+            BrokenBase: {"args": [], "kwargs": {}},
+            Child: {"args": [], "kwargs": {}},
+        }
+
+        apply_dis_bytecode_routing(Child, remaining, routing)
+
+        # The routing shouldn't change because the disassembly failed.
+        assert routing[BrokenBase]["kwargs"] == {}
+        assert x in remaining
+
+        # The above didn't actually raise the exception.
+        # So let's monkeypatch it:
+        orig_getsourcefile = dis.get_instructions
+        monkeypatch.setattr(
+            "dis.get_instructions",
+            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+            lambda self: TypeError,
+        )
+        remaining = {x: 42}
+        routing = {
+            BrokenBase: {"args": [], "kwargs": {}},
+            Child: {"args": [], "kwargs": {}},
+        }
+
+        apply_dis_bytecode_routing(Child, remaining, routing)
+        monkeypatch.setattr(
+            "dis.get_instructions",
+            orig_getsourcefile,
+        )
 
 
 class Test_split_args_for_inits:  # pylint: disable=invalid-name
