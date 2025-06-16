@@ -1,7 +1,9 @@
 """This file contains utilities to split args for inits."""
 
+import ast
 import dis
 import inspect
+import textwrap
 from collections import defaultdict
 from typing import Any, get_type_hints
 
@@ -429,13 +431,75 @@ def accepts_kwargs(cls) -> bool:
     return any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
 
 
+def get_qualified_path(node, parents):
+    """Construct fully qualified class name from parents and the node itself."""
+    return ".".join(parents + [node.name])
+
+
+def find_class_with_path(module, target_path):
+    """Recursively search for a class by its qualified path (e.g., TestFoo.C).
+    Returns the AST node if found, else None.
+    """
+
+    def recurse(node, parents):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                if (get_qualified_path(child, parents)) == target_path:
+                    return child
+                if result := recurse(child, parents + [child.name]):
+                    return result
+        return None
+
+    return recurse(module, [])
+
+
+def get_class_qualname(cls):
+    """Return fully qualified class name including enclosing classes.
+    Handles nested classes by parsing __qualname__.
+    """
+    parts = cls.__qualname__.split(".")
+    return ".".join(parts)
+
+
 def uses_super(cls) -> bool:
     """Determine whether a clss uses super."""
-    if hasattr(cls, "__init__"):
-        src = inspect.getsource(cls.__init__)
-        if "super(" in src:  # pylint: disable=magic-value-comparison
-            return True
-    return False
+    # if hasattr(cls, "__init__"):
+    #     src = inspect.getsource(cls.__init__)
+    #     if "super(" in src:  # pylint: disable=magic-value-comparison
+    #         return True
+    # return False
+    try:  # pylint: disable=too-many-try-statements,too-many-nested-blocks
+        if (sourcefile := inspect.getsourcefile(cls)) is None:
+            return False
+
+        with open(sourcefile, "r", encoding="utf8") as f:
+            sourcecode = f.read()
+
+        sourcecode = textwrap.dedent(sourcecode)
+        module = ast.parse(sourcecode)
+
+        fq_path = get_class_qualname(cls)
+        if not (class_node := find_class_with_path(module, fq_path)):
+            return False  # Class not found
+
+        for item in class_node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+                for stmt in ast.walk(item):
+                    if isinstance(stmt, ast.Call):
+                        func = stmt.func
+                        if (  # pylint: disable=too-many-boolean-expressions
+                            isinstance(func, ast.Name) and func.id == "super"
+                        ) or (
+                            isinstance(func, ast.Attribute)
+                            and isinstance(func.value, ast.Call)
+                            and isinstance(func.value.func, ast.Name)
+                            and func.value.func.id == "super"
+                        ):
+                            return True
+        return False
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"[uses_super] Error: {e}")
+        return False
 
 
 def find_super_chains(cls, stop_at=object):
@@ -501,141 +565,146 @@ def _find_calling_class_from_init(instance):  # pylint: disable=too-complex
     return None
 
 
-def _find_calling_class_from_init_old(instance):  # pylint: disable=too-complex
-    """Examine classes in MRO of `instance` to find whose `__init__` contains
-    a direct call to `apply_split_inits_old`.
-    """
-    apply_split_inits_name = "apply_split_inits_old"
-    cls = type(instance)
-    for base in cls.__mro__:
-        if DEBUG_PRINTS:
-            print(
-                f"\n[_find_calling_class_from_init] Inspecting parent class: {base.__name__}"
-            )
-        if base is object:
-            if DEBUG_PRINTS:
-                print(
-                    f"\n[_find_calling_class_from_init] Found hierarchy pinnacle: {base.__name__}"
-                )
-            continue
-        if not (init := base.__dict__.get("__init__")):
-            if DEBUG_PRINTS:
-                print(
-                    f"\n[_find_calling_class_from_init] {base.__name__} has no __init__ method."
-                )
-            continue
+# def _find_calling_class_from_init_old(instance):  # pylint: disable=too-complex
+#     """Examine classes in MRO of `instance` to find whose `__init__` contains
+#     a direct call to `apply_split_inits_old`.
+#     """
+#     apply_split_inits_name = "apply_split_inits_old"
+#     cls = type(instance)
+#     for base in cls.__mro__:
+#         if DEBUG_PRINTS:
+#             print(
+#                 f"\n[_find_calling_class_from_init] Inspecting parent class: {base.__name__}"
+#             )
+#         if base is object:
+#             if DEBUG_PRINTS:
+#                 print(
+#                     f"\n[_find_calling_class_from_init] Found hierarchy pinnacle: {base.__name__}"
+#                 )
+#             continue
+#         if not (init := base.__dict__.get("__init__")):
+#             if DEBUG_PRINTS:
+#                 print(
+#                     f"\n[_find_calling_class_from_init] {base.__name__} has no __init__ method."
+#                 )
+#             continue
 
-        try:  # pylint: disable=too-many-try-statements
-            instructions = list(dis.get_instructions(init))
-            for instr in instructions:
-                if (
-                    instr.opname in set(["LOAD_GLOBAL", "LOAD_METHOD"])
-                    and instr.argval == apply_split_inits_name
-                ):
-                    return base
-        except TypeError as e:
-            if DEBUG_PRINTS:
-                print(
-                    f"\n[_find_calling_class_from_init] Encountered TypeError: {e}"
-                )
-            continue  # Skip builtins or non-Python functions
-    return None
+#         try:  # pylint: disable=too-many-try-statements
+#             instructions = list(dis.get_instructions(init))
+#             for instr in instructions:
+#                 if (
+#                     instr.opname in set(["LOAD_GLOBAL", "LOAD_METHOD"])
+#                     and instr.argval == apply_split_inits_name
+#                 ):
+#                     return base
+#         except TypeError as e:
+#             if DEBUG_PRINTS:
+#                 print(
+#                     f"\n[_find_calling_class_from_init] Encountered TypeError: {e}"
+#                 )
+#             continue  # Skip builtins or non-Python functions
+#     return None
 
 
-def apply_split_inits_old(  # pylint: disable=too-complex,too-many-branches
-    self, cls=None, args=(), kwargs=None, skip_class=None
-):
-    """Call __init__ of all base classes using split argument mapping."""
-    cls = cls or type(self)
-    kwargs = kwargs or {}
-    if DEBUG_PRINTS:
-        # print(
-        #     f"\n[apply_split_inits] Called from class: {_find_calling_class_from_init(self)}"
-        # )
-        print(f"\n[apply_split_inits] Running for class: {cls.__name__}")
-    # Automatically detect skip class as the defining class of apply_split_inits:
-    if skip_class is None:
-        if (skip_class := _find_calling_class_from_init_old(self)) is None:
-            if DEBUG_PRINTS:
-                print(
-                    "[apply_split_inits] Warning: Failed to auto-detect skip_class."
-                )
-        else:  # pylint: disable=else-if-used,confusing-consecutive-elif
-            if DEBUG_PRINTS:  # pylint: disable=confusing-consecutive-elif
-                print(
-                    f"[apply_split_inits] Auto-detected skip_class as: {skip_class.__name__}"
-                )
-    split = split_args_for_inits_strict_kwargs(cls, args, kwargs)
-    seen = set()
-    for base in cls.__mro__[1:]:
-        if base in (object,) or base in seen:
-            continue
-        if base is skip_class:
-            if DEBUG_PRINTS:
-                print(f"[apply_split_inits] Skipping class {base.__name__}")
-            continue
-        seen.add(base)
-        if base in split:
-            base_args = split[base]["args"]
-            base_kwargs = split[base]["kwargs"]
-            if DEBUG_PRINTS:
-                print(
-                    f"[apply_split_inits] Calling __init__ of {base.__name__} with:"
-                )
-                print(f"    args: {base_args}")
-                print(f"    kwargs: {base_kwargs}")
-            if hasattr(base, "__init__"):
-                try:  # pylint: disable=too-many-try-statements
-                    # base.__init__(self, *base_args, **base_kwargs)
-                    # if DEBUG_PRINTS:
-                    #     print(f"[apply_split_inits] __init__ call succeeded for {base.__name__}.")
-                    # super(base, self).__init__(self, *base_args, **base_kwargs)
-                    super(base, self).__init__(*base_args, **base_kwargs)
-                    if DEBUG_PRINTS:
-                        print(
-                            f"[apply_split_inits] super() call succeeded for {base.__name__}."
-                        )
-                except TypeError as e:
-                    # print(f"[Warning] Skipped {base.__name__} due to: {e}")
-                    # continue
-                    if DEBUG_PRINTS:
-                        print(
-                            f"[apply_split_inits] TypeError using super() for {base.__name__}: {e}"
-                        )
-                        print(
-                            f"[apply_split_inits] Falling back to direct call for {base.__name__}"
-                        )
-                    try:
-                        # Fall back to direct init in edge cases:
-                        base.__init__(  # pylint: disable=unnecessary-dunder-call
-                            self, *base_args, **base_kwargs
-                        )
-                    except (  # pylint: disable=broad-exception-caught
-                        Exception
-                    ) as e1:
-                        if DEBUG_PRINTS:
-                            print(
-                                f"[apply_split_inits] Direct call failed for {base.__name__}: {e1}"
-                            )
-    #         args_for_super.extend(base_args)
-    #         kwargs_for_super.update(base_kwargs)
-    # # One and only call to super()
-    # try:
-    #     super(cls, self).__init__(*args_for_super, **kwargs_for_super)
-    #     if DEBUG_PRINTS:
-    #         print(f"[apply_split_inits] super() call succeeded for {cls.__name__}.")
-    # except TypeError as e:
-    #     if DEBUG_PRINTS:
-    #         print(f"[apply_split_inits] TypeError in super call: {e}")
-    #     raise
-    self._init_leftovers = split.get(  # pylint: disable=protected-access
-        LEFTOVERS, {"args": [], "kwargs": {}}
-    )
-    if DEBUG_PRINTS:
-        print(
-            f"[apply_split_inits] Leftovers set to: {self._init_leftovers}"  # pylint: disable=protected-access
-        )
-    return self._init_leftovers  # pylint: disable=protected-access
+# def apply_split_inits_old(  # pylint: disable=too-complex,too-many-branches
+#     self, cls=None, args=(), kwargs=None, skip_class=None
+# ):
+#     """Call __init__ of all base classes using split argument mapping."""
+#     cls = cls or type(self)
+#     kwargs = kwargs or {}
+#     if DEBUG_PRINTS:
+#         # print(
+#         #     f"\n[apply_split_inits] Called from class: {_find_calling_class_from_init(self)}"
+#         # )
+#         print(f"\n[apply_split_inits] Running for class: {cls.__name__}")
+#     # Automatically detect skip class as the defining class of apply_split_inits:
+#     if skip_class is None:
+#         if (skip_class := _find_calling_class_from_init_old(self)) is None:
+#             if DEBUG_PRINTS:
+#                 print(
+#                     "[apply_split_inits] Warning: Failed to auto-detect skip_class."
+#                 )
+#         else:  # pylint: disable=else-if-used,confusing-consecutive-elif
+#             if DEBUG_PRINTS:  # pylint: disable=confusing-consecutive-elif
+#                 print(
+#                     f"[apply_split_inits] Auto-detected skip_class as: {skip_class.__name__}"
+#                 )
+#     split = split_args_for_inits_strict_kwargs(cls, args, kwargs)
+#     seen = set()
+#     for base in cls.__mro__[1:]:
+#         if base in (object,) or base in seen:
+#             continue
+#         if base is skip_class:
+#             if DEBUG_PRINTS:
+#                 print(f"[apply_split_inits] Skipping class {base.__name__}")
+#             continue
+#         seen.add(base)
+#         if base in split:
+#             base_args = split[base]["args"]
+#             base_kwargs = split[base]["kwargs"]
+#             if DEBUG_PRINTS:
+#                 print(
+#                     f"[apply_split_inits] Calling __init__ of {base.__name__} with:"
+#                 )
+#                 print(f"    args: {base_args}")
+#                 print(f"    kwargs: {base_kwargs}")
+#             if hasattr(base, "__init__"):
+#                 try:  # pylint: disable=too-many-try-statements
+#                     # base.__init__(self, *base_args, **base_kwargs)
+#                     # if DEBUG_PRINTS:
+#                     #     print(
+#                     #         f"[apply_split_inits] __init__ call succeeded for {base.__name__}."
+#                     #     )
+#                     # super(base, self).__init__(self, *base_args, **base_kwargs)
+#                     super(base, self).__init__(*base_args, **base_kwargs)
+#                     if DEBUG_PRINTS:
+#                         print(
+#                             f"[apply_split_inits] super() call succeeded for {base.__name__}."
+#                         )
+#                 except TypeError as e:
+#                     # print(f"[Warning] Skipped {base.__name__} due to: {e}")
+#                     # continue
+#                     if DEBUG_PRINTS:
+#                         print(
+#                             f"[apply_split_inits] TypeError using super() for {base.__name__}:"
+#                             f" {e}"
+#                         )
+#                         print(
+#                             f"[apply_split_inits] Falling back to direct call for {base.__name__}"
+#                         )
+#                     try:
+#                         # Fall back to direct init in edge cases:
+#                         base.__init__(  # pylint: disable=unnecessary-dunder-call
+#                             self, *base_args, **base_kwargs
+#                         )
+#                     except (  # pylint: disable=broad-exception-caught
+#                         Exception
+#                     ) as e1:
+#                         if DEBUG_PRINTS:
+#                             print(
+#                                 f"[apply_split_inits] Direct call failed for {base.__name__}:"
+#                                 f" {e1}"
+#                             )
+#     #         args_for_super.extend(base_args)
+#     #         kwargs_for_super.update(base_kwargs)
+#     # # One and only call to super()
+#     # try:
+#     #     super(cls, self).__init__(*args_for_super, **kwargs_for_super)
+#     #     if DEBUG_PRINTS:
+#     #         print(f"[apply_split_inits] super() call succeeded for {cls.__name__}.")
+#     # except TypeError as e:
+#     #     if DEBUG_PRINTS:
+#     #         print(f"[apply_split_inits] TypeError in super call: {e}")
+#     #     raise
+#     self._init_leftovers = split.get(  # pylint: disable=protected-access
+#         LEFTOVERS, {"args": [], "kwargs": {}}
+#     )
+#     if DEBUG_PRINTS:
+#         print(
+#             "[apply_split_inits] Leftovers set to:"
+#             f" {self._init_leftovers}"  # pylint: disable=protected-access
+#         )
+#     return self._init_leftovers  # pylint: disable=protected-access
 
 
 def apply_split_inits(self, cls=None, args=(), kwargs=None, skip_class=None):

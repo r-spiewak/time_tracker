@@ -10,13 +10,14 @@ from python_template.utils import (
     auto_split_init,
     split_args_for_inits_strict_kwargs,
 )
-from python_template.utils.split_args_for_inits import (  # pylint: disable=unused-import
+
+# _find_calling_class_from_init_old,; apply_split_inits_old,
+from python_template.utils.split_args_for_inits import (  # pylint: disable=unused-import;
     _find_calling_class_from_init,
-    _find_calling_class_from_init_old,
-    apply_split_inits_old,
     call_init_chain_respecting_super,
     find_safe_kwargs_targets,
     share_missing_params_across_parents,
+    uses_super,
 )
 
 
@@ -128,166 +129,166 @@ class Test_FullTests:  # pylint:disable=invalid-name
         # assert d.split[LEFTOVERS]["kwargs"]["extra"] == extra
 
 
-class Test__find_calling_class_from_init_old:  # pylint:disable=invalid-name
-    """Tests for _find_calling_class_from_init_old."""
+# class Test__find_calling_class_from_init_old:  # pylint:disable=invalid-name
+#     """Tests for _find_calling_class_from_init_old."""
 
-    class BuiltinWrapper(
-        builtins.int
-    ):  # pylint: disable=too-few-public-methods
-        """Wrapper for a builtin class."""
+#     class BuiltinWrapper(
+#         builtins.int
+#     ):  # pylint: disable=too-few-public-methods
+#         """Wrapper for a builtin class."""
 
-    class DummyWithApplyOld:  # pylint: disable=too-few-public-methods
-        """Dummy class using the apply_split_inits method."""
+#     class DummyWithApplyOld:  # pylint: disable=too-few-public-methods
+#         """Dummy class using the apply_split_inits method."""
 
-        def __init__(self, *args, **kwargs):
-            apply_split_inits_old(self, args=args, kwargs=kwargs)
+#         def __init__(self, *args, **kwargs):
+#             apply_split_inits_old(self, args=args, kwargs=kwargs)
 
-    class M(SplitInitMixin):  # pylint: disable=too-few-public-methods
-        """Class inheriting SplitInitMixin and calling apply_split_inits."""
+#     class M(SplitInitMixin):  # pylint: disable=too-few-public-methods
+#         """Class inheriting SplitInitMixin and calling apply_split_inits."""
 
-        def __init__(self):  # pylint: disable=super-init-not-called
-            apply_split_inits_old(self)
+#         def __init__(self):  # pylint: disable=super-init-not-called
+#             apply_split_inits_old(self)
 
-    class NoInit:  # pylint: disable=too-few-public-methods
-        """Class with no init method."""
+#     class NoInit:  # pylint: disable=too-few-public-methods
+#         """Class with no init method."""
 
-    def test_find_calling_class_success(self):
-        """Test ensuring _find_calling_class succeeds."""
-        dummy = self.DummyWithApplyOld()
-        cls = _find_calling_class_from_init_old(dummy)
-        assert cls is self.DummyWithApplyOld
+#     def test_find_calling_class_success(self):
+#         """Test ensuring _find_calling_class succeeds."""
+#         dummy = self.DummyWithApplyOld()
+#         cls = _find_calling_class_from_init_old(dummy)
+#         assert cls is self.DummyWithApplyOld
 
-    def test_find_calling_class_skips_no_init(self):
-        """Test: Class with no init"""
-        obj = self.NoInit()
-        assert _find_calling_class_from_init_old(obj) is None
+#     def test_find_calling_class_skips_no_init(self):
+#         """Test: Class with no init"""
+#         obj = self.NoInit()
+#         assert _find_calling_class_from_init_old(obj) is None
 
-    def test_find_calling_class_handles_typeerror(self):
-        """Test: Class with non-introspectable init (simulate TypeError)"""
-        # Simulate with a built-in that raises TypeError on inspection
-        obj = self.BuiltinWrapper()
-        assert _find_calling_class_from_init_old(obj) is None
+#     def test_find_calling_class_handles_typeerror(self):
+#         """Test: Class with non-introspectable init (simulate TypeError)"""
+#         # Simulate with a built-in that raises TypeError on inspection
+#         obj = self.BuiltinWrapper()
+#         assert _find_calling_class_from_init_old(obj) is None
 
-    def test_find_calling_class_positive(self):
-        """Test: Positive detection (init calls apply_split_inits)."""
-        obj = self.M()
-        assert _find_calling_class_from_init_old(obj) == self.M
+#     def test_find_calling_class_positive(self):
+#         """Test: Positive detection (init calls apply_split_inits)."""
+#         obj = self.M()
+#         assert _find_calling_class_from_init_old(obj) == self.M
 
 
-class Test_apply_split_inits_old:  # pylint:disable=invalid-name
-    """Tests for apply_split_inits_old."""
+# class Test_apply_split_inits_old:  # pylint:disable=invalid-name
+#     """Tests for apply_split_inits_old."""
 
-    class AcceptsAll:  # pylint: disable=too-few-public-methods
-        """Class that accepts all kwargs."""
+#     class AcceptsAll:  # pylint: disable=too-few-public-methods
+#         """Class that accepts all kwargs."""
 
-        def __init__(self, **kwargs):
-            pass
+#         def __init__(self, **kwargs):
+#             pass
 
-    class AcceptsAllDummy(
-        AcceptsAll
-    ):  # pylint: disable=too-few-public-methods
-        """Wrapper class for AcceptsAll class."""
+#     class AcceptsAllDummy(
+#         AcceptsAll
+#     ):  # pylint: disable=too-few-public-methods
+#         """Wrapper class for AcceptsAll class."""
 
-    class BuiltinTypeClass:  # pylint: disable=too-few-public-methods
-        """Class that should raise TypeError in dis.get_instructions."""
+#     class BuiltinTypeClass:  # pylint: disable=too-few-public-methods
+#         """Class that should raise TypeError in dis.get_instructions."""
 
-        __init__ = object.__init__
+#         __init__ = object.__init__
 
-    class Skip(SplitInitMixin):  # pylint: disable=too-few-public-methods
-        """Class with a defined skip class."""
+#     class Skip(SplitInitMixin):  # pylint: disable=too-few-public-methods
+#         """Class with a defined skip class."""
 
-        def __init__(self):  # pylint: disable=super-init-not-called
-            apply_split_inits_old(self, skip_class=type(self))
+#         def __init__(self):  # pylint: disable=super-init-not-called
+#             apply_split_inits_old(self, skip_class=type(self))
 
-    def test_apply_split_inits_manual_skip(self):
-        """Test: Skip class manually"""
-        obj = self.Skip()
-        assert hasattr(obj, "_init_leftovers")
+#     def test_apply_split_inits_manual_skip(self):
+#         """Test: Skip class manually"""
+#         obj = self.Skip()
+#         assert hasattr(obj, "_init_leftovers")
 
-    # Line tests: raise TypeError handling
-    def test_split_args_with_var_kwargs(self):
-        """Test: Class with **kwargs"""
-        result = split_args_for_inits_strict_kwargs(
-            self.AcceptsAllDummy, [], {"z": 1}
-        )
-        assert result[self.AcceptsAll]["kwargs"] == {"z": 1}
-        assert result[LEFTOVERS]["kwargs"] == {"z": 1}
+#     # Line tests: raise TypeError handling
+#     def test_split_args_with_var_kwargs(self):
+#         """Test: Class with **kwargs"""
+#         result = split_args_for_inits_strict_kwargs(
+#             self.AcceptsAllDummy, [], {"z": 1}
+#         )
+#         assert result[self.AcceptsAll]["kwargs"] == {"z": 1}
+#         assert result[LEFTOVERS]["kwargs"] == {"z": 1}
 
-    def test_find_calling_class_typeerror_branch(self):
-        """Test that should raise TypeError and hit that branch."""
-        instance = self.BuiltinTypeClass()
-        result = _find_calling_class_from_init_old(instance)
-        assert result is None
+#     def test_find_calling_class_typeerror_branch(self):
+#         """Test that should raise TypeError and hit that branch."""
+#         instance = self.BuiltinTypeClass()
+#         result = _find_calling_class_from_init_old(instance)
+#         assert result is None
 
-    # Line test: if skip_class is None: (which means _find_calling_class_from_init failed)
-    def test_apply_split_inits_old_skip_class_none_branch(self, monkeypatch):
-        """Test forcing the _find_calling_class_from_init to fail."""
+#     # Line test: if skip_class is None: (which means _find_calling_class_from_init failed)
+#     def test_apply_split_inits_old_skip_class_none_branch(self, monkeypatch):
+#         """Test forcing the _find_calling_class_from_init to fail."""
 
-        class X:  # pylint: disable=too-few-public-methods
-            """Class with one positional arg."""
+#         class X:  # pylint: disable=too-few-public-methods
+#             """Class with one positional arg."""
 
-            def __init__(self, foo):  # pylint: disable=disallowed-name
-                self.foo = foo  # pylint: disable=disallowed-name
+#             def __init__(self, foo):  # pylint: disable=disallowed-name
+#                 self.foo = foo  # pylint: disable=disallowed-name
 
-        class Y:  # pylint: disable=too-few-public-methods
-            """Class with one kwarg."""
+#         class Y:  # pylint: disable=too-few-public-methods
+#             """Class with one kwarg."""
 
-            def __init__(self, bar=2):  # pylint: disable=disallowed-name
-                self.bar = bar  # pylint: disable=disallowed-name
+#             def __init__(self, bar=2):  # pylint: disable=disallowed-name
+#                 self.bar = bar  # pylint: disable=disallowed-name
 
-        class Z(X, Y):  # pylint: disable=too-few-public-methods
-            """Class to inherit two other classes."""
+#         class Z(X, Y):  # pylint: disable=too-few-public-methods
+#             """Class to inherit two other classes."""
 
-            def __init__(
-                self, *args, **kwargs
-            ):  # pylint: disable=super-init-not-called
-                apply_split_inits_old(self, args=args, kwargs=kwargs)
+#             def __init__(
+#                 self, *args, **kwargs
+#             ):  # pylint: disable=super-init-not-called
+#                 apply_split_inits_old(self, args=args, kwargs=kwargs)
 
-        # Force _find_calling_class_from_init to raise TypeError
-        monkeypatch.setattr(
-            "python_template.utils.split_args_for_inits._find_calling_class_from_init",
-            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
-            lambda self: None,
-        )
+#         # Force _find_calling_class_from_init to raise TypeError
+#         monkeypatch.setattr(
+#             "python_template.utils.split_args_for_inits._find_calling_class_from_init",
+#             # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+#             lambda self: None,
+#         )
 
-        z = Z(1, bar=5)
-        assert hasattr(z, "bar")
+#         z = Z(1, bar=5)
+#         assert hasattr(z, "bar")
 
-    # Line test: Except exception (after already excepting TypeError earlier)
-    def test_apply_split_inits_old_direct_call_fallback(self, monkeypatch):
-        """Test: super fails, then base.__init__ raises an exception."""
-        # Patch super() to raise TypeError for test coverage
-        original_super = super
+#     # Line test: Except exception (after already excepting TypeError earlier)
+#     def test_apply_split_inits_old_direct_call_fallback(self, monkeypatch):
+#         """Test: super fails, then base.__init__ raises an exception."""
+#         # Patch super() to raise TypeError for test coverage
+#         original_super = super
 
-        class MockSuper:  # pylint: disable=too-few-public-methods
-            """A class to mock the super function."""
+#         class MockSuper:  # pylint: disable=too-few-public-methods
+#             """A class to mock the super function."""
 
-            def __init__(self, base, obj):
-                raise TypeError("force fallback")
+#             def __init__(self, base, obj):
+#                 raise TypeError("force fallback")
 
-        monkeypatch.setattr("builtins.super", MockSuper)
+#         monkeypatch.setattr("builtins.super", MockSuper)
 
-        class Bar:  # pylint:disable=too-few-public-methods
-            """Class whose base.__init__ should raise an exception."""
+#         class Bar:  # pylint:disable=too-few-public-methods
+#             """Class whose base.__init__ should raise an exception."""
 
-            def __init__(self, bar):  # pylint: disable=disallowed-name
-                self.bar = bar  # pylint: disable=disallowed-name
-                # This makes it raise a TypeError while doing the base.__init__:
-                raise TypeError
+#             def __init__(self, bar):  # pylint: disable=disallowed-name
+#                 self.bar = bar  # pylint: disable=disallowed-name
+#                 # This makes it raise a TypeError while doing the base.__init__:
+#                 raise TypeError
 
-        class FailSuper(Bar):  # pylint: disable=too-few-public-methods
-            """Class that should fail super ad fall back to base.__init__"""
+#         class FailSuper(Bar):  # pylint: disable=too-few-public-methods
+#             """Class that should fail super ad fall back to base.__init__"""
 
-            def __init__(
-                self, *args, **kwargs
-            ):  # pylint: disable=super-init-not-called
-                apply_split_inits_old(self, args=args, kwargs=kwargs)
+#             def __init__(
+#                 self, *args, **kwargs
+#             ):  # pylint: disable=super-init-not-called
+#                 apply_split_inits_old(self, args=args, kwargs=kwargs)
 
-        fortytwo = 42
-        f = FailSuper(bar=fortytwo)
-        assert f.bar == fortytwo
+#         fortytwo = 42
+#         f = FailSuper(bar=fortytwo)
+#         assert f.bar == fortytwo
 
-        monkeypatch.setattr("builtins.super", original_super)  # Restore
+#         monkeypatch.setattr("builtins.super", original_super)  # Restore
 
 
 class Test__find_calling_class_from_init:  # pylint:disable=invalid-name,too-few-public-methods
@@ -308,8 +309,90 @@ class Test__find_calling_class_from_init:  # pylint:disable=invalid-name,too-few
         assert result[LEFTOVERS]["args"] == [1]
         assert result[LEFTOVERS]["kwargs"] == {"x": 2}
 
+    class DummyWithApply:  # pylint: disable=too-few-public-methods
+        """Dummy class using the apply_split_inits method."""
 
-class Test_split_args_for_inits:  # pylint:disable=invalid-name
+        def __init__(self, *args, **kwargs):
+            apply_split_inits(self, args=args, kwargs=kwargs)
+
+    def test_find_calling_class_success(self):
+        """Test ensuring _find_calling_class succeeds."""
+        dummy = self.DummyWithApply()
+        cls = _find_calling_class_from_init(dummy)
+        assert cls is self.DummyWithApply
+
+    class NoInit:  # pylint: disable=too-few-public-methods
+        """Class with no init method."""
+
+    def test_find_calling_class_skips_no_init(self):
+        """Test: Class with no init"""
+        obj = self.NoInit()
+        assert _find_calling_class_from_init(obj) is None
+
+    class BuiltinWrapper(
+        builtins.int
+    ):  # pylint: disable=too-few-public-methods
+        """Wrapper for a builtin class."""
+
+    def test_find_calling_class_handles_typeerror(self):
+        """Test: Class with non-introspectable init (simulate TypeError)"""
+        # Simulate with a built-in that raises TypeError on inspection
+        obj = self.BuiltinWrapper()
+        assert _find_calling_class_from_init(obj) is None
+
+    # class M(SplitInitMixin):  # pylint: disable=too-few-public-methods
+    class M:  # pylint: disable=too-few-public-methods
+        """Class inheriting SplitInitMixin and calling apply_split_inits."""
+
+        def __init__(self):  # pylint: disable=super-init-not-called
+            apply_split_inits(self)
+            # super().__init__()
+
+    def test_find_calling_class_positive(self):
+        """Test: Positive detection (init calls apply_split_inits)."""
+        obj = self.M()
+        assert _find_calling_class_from_init(obj) == self.M
+
+
+class Test_apply_split_inits:  # pylint: disable=invalid-name
+    """Tests for apply_split_inits."""
+
+    # Line test: if skip_class is None: (which means _find_calling_class_from_init failed)
+    def test_apply_split_inits_skip_class_none_branch(self, monkeypatch):
+        """Test forcing the _find_calling_class_from_init to fail."""
+
+        class X:  # pylint: disable=too-few-public-methods
+            """Class with one positional arg."""
+
+            def __init__(self, foo):  # pylint: disable=disallowed-name
+                self.foo = foo  # pylint: disable=disallowed-name
+
+        class Y:  # pylint: disable=too-few-public-methods
+            """Class with one kwarg."""
+
+            def __init__(self, bar=2):  # pylint: disable=disallowed-name
+                self.bar = bar  # pylint: disable=disallowed-name
+
+        class Z(X, Y):  # pylint: disable=too-few-public-methods
+            """Class to inherit two other classes."""
+
+            def __init__(
+                self, *args, **kwargs
+            ):  # pylint: disable=super-init-not-called
+                apply_split_inits(self, args=args, kwargs=kwargs)
+
+        # Force _find_calling_class_from_init to raise TypeError
+        monkeypatch.setattr(
+            "python_template.utils.split_args_for_inits._find_calling_class_from_init",
+            # lambda self: (_ for _ in ()).throw(TypeError("mocked")),
+            lambda self: None,
+        )
+
+        z = Z(1, bar=5)
+        assert hasattr(z, "bar")
+
+
+class Test_split_args_for_inits:  # pylint: disable=invalid-name
     """Tests for split_args_for_inits"""
 
     class A1:  # pylint: disable=too-few-public-methods
@@ -1184,6 +1267,10 @@ class Test_Alphabet:  # pylint: disable=invalid-name
     l = 12
     m = 13
     n = 14
+
+    def test_c(self):
+        """Tests that uses_super returns True for class C."""
+        assert uses_super(self.C)
 
     def test_d(self):
         """Tests that kwargs are correctly passed to correct kwargs in
