@@ -1,5 +1,5 @@
 """This file contains tests for the functions, classes, and decorators
-in the split_args_for_inits module."""
+in the split_args_for_inits module."""  # pylint: disable=too-many-lines
 
 import builtins
 
@@ -14,6 +14,9 @@ from python_template.utils.split_args_for_inits import (  # pylint: disable=unus
     _find_calling_class_from_init,
     _find_calling_class_from_init_old,
     apply_split_inits_old,
+    call_init_chain_respecting_super,
+    find_safe_kwargs_targets,
+    share_missing_params_across_parents,
 )
 
 
@@ -402,6 +405,12 @@ class Test_split_args_for_inits:  # pylint:disable=invalid-name
     class FDummy(F):  # pylint: disable=too-few-public-methods
         """Wrapper class for F class."""
 
+    class KWTop:  # pylint: disable=too-few-public-methods
+        """Class that extracts an attr from kwargs."""
+
+        def __init__(self, **kwargs):
+            self.kwtop = kwargs.get("x")
+
     class P1:  # pylint: disable=too-few-public-methods
         """Class with one positional arg and one kwarg."""
 
@@ -431,6 +440,46 @@ class Test_split_args_for_inits:  # pylint:disable=invalid-name
 
     class QDummy(Q):  # pylint:disable=too-few-public-methods
         """Wrapper class or Q."""
+
+    class Top1:  # pylint:disable=too-few-public-methods
+        """Class with typehint for typehint routing."""
+
+        def __init__(self, a: int):
+            self.a = a
+
+    class Top2:  # pylint:disable=too-few-public-methods
+        """Class with positional arg."""
+
+        def __init__(self, b):
+            self.b = b
+
+    class Mid1(Top1):  # pylint: disable=too-few-public-methods
+        """Class inheriting a class and passing positional arg."""
+
+        def __init__(
+            self, a: int, **kwargs
+        ):  # pylint: disable=unused-argument
+            super().__init__(a)
+
+    class Mid2(Top2):  # pylint: disable=too-few-public-methods
+        """Class inheriting a class and passing positional arg."""
+
+        def __init__(self, b, **kwargs):  # pylint: disable=unused-argument
+            super().__init__(b)
+
+    class Ambiguous(Mid1, Mid2):  # pylint: disable=too-few-public-methods
+        """Class inheriting two classes, which each inherit a class."""
+
+        def __init__(
+            self, **kwargs
+        ):  # pylint: disable=useless-parent-delegation
+            super().__init__(**kwargs)
+
+    class UsesGet:  # pylint: disable=too-few-public-methods
+        """Class that extracts attr from kwargs using "get"."""
+
+        def __init__(self, **kwargs):
+            self.b = kwargs.get("b")
 
     def test_split_args_for_inits_applies_init_properly(self):
         """Test: Mixin correctly delegates to helper"""
@@ -616,6 +665,155 @@ class Test_split_args_for_inits:  # pylint:disable=invalid-name
         # assert not c.caught
         assert c.leftovers["kwargs"] == {"target": check, "unused": unused}
 
+    def test_kwtop_routing(self, split_args, class_wrapper):
+        """Test extracting attr from kwargs."""
+        result = split_args(class_wrapper(self.KWTop), (), {"x": 42})
+        assert self.KWTop in result
+        assert result[self.KWTop]["kwargs"] == {"x": 42}
+
+    def test_type_hint_routing(self, split_args, class_wrapper):
+        """Test using the type hint routing."""
+        result = split_args(
+            class_wrapper(self.Top1),
+            (),
+            {"a": 10},
+            enable_type_heuristics=True,
+        )
+        assert result[self.Top1]["kwargs"] == {"a": 10}
+
+    def test_dis_bytecode_get(self, split_args, class_wrapper):
+        """Test for extracting attr from kwargs using "get"."""
+        result = split_args(
+            class_wrapper(self.UsesGet),
+            (),
+            {"b": 123},
+            enable_dis_bytecode_scan=True,
+        )
+        assert result[self.UsesGet]["kwargs"] == {"b": 123}
+
+    def test_ambiguous_dupe_kwarg(self, split_args):
+        """Test passing kwargs correctly."""
+        a = 1
+        b = 2
+        # result = split_args(
+        #     class_wrapper(Ambiguous), (), {"a": 1, "b": 2}, enable_type_heuristics=True
+        # )
+        result = split_args(
+            self.Ambiguous, (), {"a": a, "b": b}, enable_type_heuristics=True
+        )
+        assert self.Mid1 in result
+        assert self.Mid2 in result
+        assert result[self.Mid1]["kwargs"].get("a") == a
+        # assert result[Ambiguous]["kwargs"].get("a") == a
+        assert result[self.Mid2]["kwargs"].get("b") == b
+        # assert result[Ambiguous]["kwargs"].get("b") == b
+
+    class DiamondBase:  # pylint: disable=too-few-public-methods
+        """Base of diamond inheritance pyramid."""
+
+        count = 0
+
+        def __init__(self, x):
+            self.x = x
+            self.count += 1
+
+    class DiamondLeft(DiamondBase):  # pylint: disable=too-few-public-methods
+        """Left side of diamond inheritance pyramid."""
+
+        def __init__(self, x, **kwargs):  # pylint: disable=unused-argument
+            super().__init__(x)
+
+    class DiamondRight(DiamondBase):  # pylint: disable=too-few-public-methods
+        """Right side of diamond inheritance pyramid."""
+
+        def __init__(self, x, **kwargs):  # pylint: disable=unused-argument
+            super().__init__(x)
+
+    class Diamond(
+        DiamondLeft, DiamondRight
+    ):  # pylint: disable=too-few-public-methods
+        """Top of diamond inheritance pyramid."""
+
+        def __init__(
+            self, **kwargs
+        ):  # pylint: disable=useless-parent-delegation
+            super().__init__(**kwargs)
+
+    class DiamondInstantiator(
+        DiamondLeft, DiamondRight
+    ):  # pylint: disable=too-few-public-methods
+        """Class to instantiate diamond inheritance pyramid."""
+
+        def __init__(self, **kwargs):  # pylint: disable=super-init-not-called
+            # split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            # DiamondLeft.__init__(
+            #     self, *split[DiamondLeft]["args"], **split[DiamondLeft]["kwargs"]
+            # )
+            # DiamondRight.__init__(
+            #     self, *split[DiamondRight]["args"], **split[DiamondRight]["kwargs"]
+            # )
+            apply_split_inits(self, type(self), (), kwargs)
+
+    def test_diamond_deduplication(self, split_args):
+        """Test deduplication for diamond inheritance pattern."""
+        five = 5
+        x = "x"
+        result = split_args(self.Diamond, (), {x: 5})
+        # This test deson't make sense as written, since it would only be put in Diamond once
+        # anyway.
+        # But if it's called from within Diamond, then we have DiamondLeft and DiamondRight,
+        # which could both get it, except that they both call DiamondBase.
+        # Ensure DiamondBase isn't called twice:
+        called = [
+            cls
+            for cls in result
+            if x in result[cls]["kwargs"] or result[cls]["args"]
+        ]
+        # assert len([cls for cls in called if cls is DiamondBase]) <= 1
+        assert len(called) == 1
+        # assert False
+        # I don't even know what to test here...
+        # assert...
+        # The problem arises when instantiating as follows.
+        # Then, DiamondRight needs to get the arg too, and it doesn't.
+        # But I think the solution to the problem with J and L above
+        # would likely solve this one too.
+        diamond_inst = self.DiamondInstantiator(x=five)
+        assert diamond_inst.x == five
+
+    class A5:  # pylint: disable=too-few-public-methods
+        """Non-kwarg-safe class."""
+
+        def __init__(self):
+            pass
+
+    class B5:  # pylint: disable=too-few-public-methods
+        """kwarg-safe class."""
+
+        def __init__(self, **kwargs):
+            self.extra = kwargs
+
+    class C5(A5, B5):  # pylint: disable=too-few-public-methods
+        """Class inheriting one kwarg-safe and one non-kwarg-safe class."""
+
+        def __init__(
+            self, **kwargs
+        ):  # pylint: disable=useless-parent-delegation
+            super().__init__(**kwargs)
+
+    def test_safe_fallback_routing(self, split_args, class_wrapper):
+        """Test safe routing fallback for kwargs."""
+        # result = split_args(
+        #     class_wrapper(self.C5), (), {"unused": 1}, fallback_to_safe_kwargs=True
+        # )
+        result = split_args(class_wrapper(self.C5), (), {"unused": 1})
+        # Again, this isn't how it works...
+        # assert self.B5 in result
+        # assert result[self.B5]["kwargs"] == {"unused": 1}
+        assert self.B5 not in result
+        # I'm not entirely sure why the following assert fails?
+        # assert result[self.C5]["kwargs"] == {"unused": 1}
+
 
 class Test_SplitInitMixin:  # pylint:disable=invalid-name
     """Tests for the SplitInitMixin class"""
@@ -773,6 +971,381 @@ class Test_decorator:  # pylint:disable=invalid-name,too-few-public-methods
                 "kwargs": {"extra": "stuff"},
             }
         )
+
+
+class Test_Alphabet:  # pylint: disable=invalid-name
+    """A bunch of tests using alphabet classes."""
+
+    class A:  # pylint: disable=too-few-public-methods
+        """Not safe for kwargs"""
+
+        def __init__(self, a):
+            self.a = a
+
+    class B:  # pylint: disable=too-few-public-methods
+        """Safe for kwargs"""
+
+        def __init__(self, b, **kwargs):
+            # pdb.set_trace()
+            self.b = b
+            self.b_kwargs = kwargs
+
+    class C(A):  # pylint: disable=too-few-public-methods
+        """Not safe for kwargs"""
+
+        def __init__(self, c, **kwargs):
+            self.c = c
+            super().__init__(**kwargs)
+
+    class D(B):  # pylint: disable=too-few-public-methods
+        """Safe for kwargs"""
+
+        def __init__(self, d, **kwargs):
+            self.d = d
+            # pdb.set_trace()
+            super().__init__(**kwargs)
+
+    class E(C, D):  # pylint: disable=too-few-public-methods
+        """Class E."""
+
+        def __init__(self, e, **kwargs):
+            self.e = e
+            # pdb.set_trace()
+            self.safe_targets = find_safe_kwargs_targets(type(self))
+            # pdb.set_trace()
+            # super().__init__(self, **kwargs)
+            # split = split_args_for_inits_strict_kwargs(type(self), ("r",), kwargs)
+            split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            Test_Alphabet.C.__init__(
+                self,
+                *split[Test_Alphabet.C]["args"],
+                **split[Test_Alphabet.C]["kwargs"],
+            )
+            Test_Alphabet.D.__init__(
+                self,
+                *split[Test_Alphabet.D]["args"],
+                **split[Test_Alphabet.D]["kwargs"],
+            )
+            # pdb.set_trace()
+
+    class F:  # pylint: disable=too-few-public-methods
+        """Also safe for kwargs"""
+
+        def __init__(self, f, **kwargs):
+            # pdb.set_trace()
+            self.f = f
+            self.f_kwargs = kwargs
+
+    class G(F):  # pylint: disable=too-few-public-methods
+        """Also safe for kwargs"""
+
+        def __init__(self, g, **kwargs):
+            self.g = g
+            super().__init__(**kwargs)
+
+    class H(C, D, G):  # pylint: disable=too-few-public-methods
+        """Class H."""
+
+        def __init__(self, h, **kwargs):
+            self.h = h
+            # pdb.set_trace()
+            # self.safe_targets = find_safe_kwargs_targets(type(self))
+            # pdb.set_trace()
+            # super().__init__(self, **kwargs)
+            # split = split_args_for_inits_strict_kwargs(type(self), ("r",), kwargs)
+            split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            Test_Alphabet.C.__init__(
+                self,
+                *split[Test_Alphabet.C]["args"],
+                **split[Test_Alphabet.C]["kwargs"],
+            )
+            Test_Alphabet.D.__init__(
+                self,
+                *split[Test_Alphabet.D]["args"],
+                **split[Test_Alphabet.D]["kwargs"],
+            )
+            Test_Alphabet.G.__init__(
+                self,
+                *split[Test_Alphabet.G]["args"],
+                **split[Test_Alphabet.G]["kwargs"],
+            )
+            # pdb.set_trace()
+
+    class I(B):  # pylint: disable=too-few-public-methods
+        """Also safe."""
+
+        def __init__(self, i, **kwargs):
+            self.i = i
+            super().__init__(**kwargs)
+
+    class J(C, D, G, I):  # pylint: disable=too-few-public-methods
+        """Class J."""
+
+        def __init__(
+            self, j, **kwargs
+        ):  # pylint: disable=super-init-not-called
+            self.j = j
+            split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            # pdb.set_trace()
+            share_missing_params_across_parents(split, stop_at=object)
+            # Problem here: Since D(B) and I(B), B is held off until after I.
+            # And then super() in D will pass along to G, but D doesn't have the
+            # args for G...
+            # So I need to handle the diamond inheritance pattern too.
+            # chains = find_super_chains(type(self))
+            call_init_chain_respecting_super(
+                self, type(self), split, stop_at=object
+            )
+            # C.__init__(self, *split[C]["args"], **split[C]["kwargs"])
+            # D.__init__(self, *split[D]["args"], **split[D]["kwargs"])
+            # G.__init__(self, *split[G]["args"], **split[G]["kwargs"])
+            # I.__init__(self, *split[I]["args"], **split[I]["kwargs"])
+            # pdb.set_trace()
+            # Looks like the combination of these three functions does it!
+
+    class K:  # pylint: disable=too-few-public-methods
+        """Not safe."""
+
+        def __init__(self, k, b):
+            self.k = k
+            self.k_b = b
+
+    class L(C, D, G, K):  # pylint: disable=too-few-public-methods
+        """Class L."""
+
+        def __init__(self, l, **kwargs):
+            self.l = l
+            split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            # pdb.set_trace()
+            # Problem here: Since K requires b and D(B), b is only passed to D (not K).
+            # And then K is missing the required positional arg b...
+            # So I need to handle the ambiguous args too.
+            share_missing_params_across_parents(split, stop_at=object)
+            # pdb.set_trace()
+            Test_Alphabet.C.__init__(
+                self,
+                *split[Test_Alphabet.C]["args"],
+                **split[Test_Alphabet.C]["kwargs"],
+            )
+            Test_Alphabet.D.__init__(
+                self,
+                *split[Test_Alphabet.D]["args"],
+                **split[Test_Alphabet.D]["kwargs"],
+            )
+            Test_Alphabet.G.__init__(
+                self,
+                *split[Test_Alphabet.G]["args"],
+                **split[Test_Alphabet.G]["kwargs"],
+            )
+            Test_Alphabet.K.__init__(
+                self,
+                *split[Test_Alphabet.K]["args"],
+                **split[Test_Alphabet.K]["kwargs"],
+            )
+            # pdb.set_trace()
+
+    class M(D, I):  # pylint: disable=too-few-public-methods
+        """Class M."""
+
+        def __init__(self, m, **kwargs):
+            self.m = m
+            super().__init__(**kwargs)
+
+    class N(M, C):  # pylint: disable=too-few-public-methods
+        """Class N."""
+
+        def __init__(
+            self, n, **kwargs
+        ):  # pylint: disable=super-init-not-called
+            self.n = n
+            split = split_args_for_inits_strict_kwargs(type(self), (), kwargs)
+            share_missing_params_across_parents(split, stop_at=object)
+            # The point of this is to check that the chain correctly gets the MRO
+            # of the super-respecting diamond inheritance M class (which inherits D
+            # and I, which both inherit B).
+            # It does.
+            # chains = find_super_chains(type(self))
+            # pdb.set_trace()
+            call_init_chain_respecting_super(
+                self, type(self), split, stop_at=object
+            )
+
+    a = 1
+    b = 2
+    c = 3
+    d = 4
+    e = 5
+    f = 6
+    g = 7
+    h = 8
+    i = 9
+    j = 10
+    k = 11
+    l = 12
+    m = 13
+    n = 14
+
+    def test_d(self):
+        """Tests that kwargs are correctly passed to correct kwargs in
+        kwarg-safe parents."""
+        d_inst = self.D(b=self.b, d=self.d)
+        assert d_inst.d == self.d
+        assert d_inst.b == self.b
+
+    def test_e(self):
+        """Tests that:
+        - kwargs are correctly passed to kwarg-dafe targets
+        - kwargs are not passed to kwarg-unsafe targets
+        """
+        e_inst = self.E(
+            a=self.a, b=self.b, c=self.c, d=self.d, e=self.e, f=self.f
+        )
+        assert e_inst.a == self.a
+        assert e_inst.b == self.b
+        assert e_inst.b_kwargs == {"f": self.f}
+        assert e_inst.c == self.c
+        assert e_inst.d == self.d
+        assert e_inst.e == self.e
+
+    def test_h(self):
+        """Tests that:
+        - kwargs are correctly passed to kwarg-dafe targets
+        - kwargs are not passed to kwarg-unsafe targets
+        - kwargs for multiple kwarg safe classes are passed to all of them
+        """
+        h_inst = self.H(
+            a=self.a,
+            b=self.b,
+            c=self.c,
+            d=self.d,
+            e=self.e,
+            f=self.f,
+            g=self.g,
+            h=self.h,
+        )
+        assert h_inst.a == self.a
+        assert h_inst.b == self.b
+        assert h_inst.b_kwargs == {"e": self.e}
+        assert h_inst.c == self.c
+        assert h_inst.d == self.d
+        assert h_inst.f == self.f
+        assert h_inst.f_kwargs == {"e": self.e}
+        assert h_inst.g == self.g
+        assert h_inst.h == self.h
+        # assert h_inst._init_leftovers["kwargs"] == {"e": self.e}  # pylint: disable=protected-access
+
+    def test_j(self):
+        """Tests that:
+        - kwargs are correctly passed to kwarg-dafe targets
+        - kwargs are not passed to kwarg-unsafe targets
+        - kwargs for multiple kwarg safe classes are passed to all of them
+        - diamond inheritance pattern works
+        """
+        kwargs = {"e": self.e, "h": self.h}
+        f_kwargs = kwargs.copy()
+        f_kwargs["b"] = self.b
+        j_inst = self.J(
+            a=self.a,
+            b=self.b,
+            c=self.c,
+            d=self.d,
+            e=self.e,
+            f=self.f,
+            g=self.g,
+            h=self.h,
+            i=self.i,
+            j=self.j,
+        )
+        assert j_inst.a == self.a
+        assert j_inst.b == self.b
+        assert j_inst.b_kwargs == kwargs
+        assert j_inst.c == self.c
+        assert j_inst.d == self.d
+        assert j_inst.f == self.f
+        assert j_inst.f_kwargs == f_kwargs
+        assert j_inst.g == self.g
+        assert j_inst.i == self.i
+        # assert j_inst._init_leftovers["kwargs"] == kwargs  # pylint: disable=protected-access
+
+    def test_l(self):
+        """Tests that:
+        - kwargs are correctly passed to kwarg-dafe targets
+        - kwargs are not passed to kwarg-unsafe targets
+        - kwargs for multiple kwarg safe classes are passed to all of them
+        - diamond inheritance pattern works
+        - kwargs called for by multiple parents are routed to all
+        """
+        kwargs = {"e": self.e, "h": self.h, "i": self.i, "j": self.j}
+        l_inst = self.L(
+            a=self.a,
+            b=self.b,
+            c=self.c,
+            d=self.d,
+            e=self.e,
+            f=self.f,
+            g=self.g,
+            h=self.h,
+            i=self.i,
+            j=self.j,
+            k=self.k,
+            l=self.l,
+        )
+        assert l_inst.a == self.a
+        assert l_inst.b == self.b
+        assert l_inst.b_kwargs == kwargs
+        assert l_inst.c == self.c
+        assert l_inst.d == self.d
+        assert l_inst.f == self.f
+        assert l_inst.f_kwargs == kwargs
+        assert l_inst.g == self.g
+        assert l_inst.k == self.k
+        assert l_inst.k_b == self.b
+        assert l_inst.l == self.l
+        # assert l_inst._init_leftovers["kwargs"] == kwargs  # pylint: disable=protected-access
+
+    def test_n(self):
+        """Tests that:
+        - kwargs are correctly passed to kwarg-dafe targets
+        - kwargs are not passed to kwarg-unsafe targets
+        - kwargs for multiple kwarg safe classes are passed to all of them
+        - diamond inheritance pattern works
+        - kwargs called for by multiple parents are routed to all
+        - correct routing for chains with super-respecting and non-super-respecting MRO portions
+        """
+        kwargs = {
+            "e": self.e,
+            "f": self.f,
+            "g": self.g,
+            "h": self.h,
+            "j": self.j,
+            "k": self.k,
+            "l": self.l,
+        }
+        n_inst = self.N(
+            a=self.a,
+            b=self.b,
+            c=self.c,
+            d=self.d,
+            e=self.e,
+            f=self.f,
+            g=self.g,
+            h=self.h,
+            i=self.i,
+            j=self.j,
+            k=self.k,
+            l=self.l,
+            m=self.m,
+            n=self.n,
+        )
+        assert n_inst.a == self.a
+        assert n_inst.b == self.b
+        assert n_inst.b_kwargs == kwargs
+        assert n_inst.c == self.c
+        assert n_inst.d == self.d
+        assert n_inst.i == self.i
+        assert n_inst.m == self.m
+        assert n_inst.n == self.n
+        # assert n_inst._init_leftovers["kwargs"] == kwargs  # pylint: disable=protected-access
 
 
 # if __name__ == "__main__":

@@ -9,6 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from python_template.utils.split_args_for_inits import (
+    split_args_for_inits_strict_kwargs,
+)
+
 
 @pytest.fixture
 def temp_dir():
@@ -30,3 +34,29 @@ def temp_dir():
             pass  # Last resort: ignore if still fails
 
     shutil.rmtree(dir_path, onerror=onerror)
+
+
+@pytest.fixture
+def split_args():
+    """Wrapper fixture for split_args_for_inits_strict_kwargs."""
+    # from split_module import split_args_for_inits_strict_kwargs
+    return lambda *args, **kwargs: split_args_for_inits_strict_kwargs(  # pylint:disable=unnecessary-lambda
+        *args, **kwargs
+    )
+
+
+@pytest.fixture
+def class_wrapper():
+    """Wrapper fixture for classes."""
+
+    def _class_wrapper(base_class):
+        """Construct a wrapper class around base_class."""
+
+        class ClassWrapper(
+            base_class
+        ):  # pylint: disable=too-few-public-methods
+            """A wrapper class around base_class."""
+
+        return ClassWrapper
+
+    return _class_wrapper
