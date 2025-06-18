@@ -9,6 +9,10 @@ from enum import IntEnum, auto
 from pathlib import Path
 from typing import cast
 
+from python_template import config
+
+DEBUG_PRINTS = config.debug_prints
+
 
 class DebugCategory(IntEnum):
     """Debug category levels for logging, from least to
@@ -195,10 +199,11 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
             self.logger_filename.parents[0].mkdir(parents=True, exist_ok=True)
 
             logger_key = str(self.logger_filename.absolute().resolve())
-            print(f"Using logger_key: {logger_key}")
-            print(
-                f"Existing keys in _loggers: {list(LoggerMixin._loggers.keys())}"
-            )
+            if DEBUG_PRINTS:
+                print(f"Using logger_key: {logger_key}")
+                print(
+                    f"Existing keys in _loggers: {list(LoggerMixin._loggers.keys())}"
+                )
             if logger_key in LoggerMixin._loggers:
                 self.logger: CategoryLogger = LoggerMixin._loggers[logger_key]
                 if LoggerMixin._debug_enabled:
