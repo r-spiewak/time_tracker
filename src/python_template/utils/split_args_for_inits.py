@@ -7,7 +7,9 @@ import textwrap
 from collections import defaultdict
 from typing import Any, get_type_hints
 
-DEBUG_PRINTS = True
+from python_template import config
+
+DEBUG_PRINTS = config.debug_prints
 LEFTOVERS = "leftovers"
 
 
