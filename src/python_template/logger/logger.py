@@ -154,7 +154,7 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
     _lock_logger = threading.Lock()  # Add a lock for thread safety.
     _loggers: dict = {}
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-branches,too-many-statements
         self,
         logger_filename: str | Path | None = None,
         logger_format: str | None = None,
@@ -183,6 +183,10 @@ class LoggerMixin:  # pylint: disable=too-few-public-methods
             LoggerMixin._lock_logger
         ):  # Acquire the lock before making changes.
             # Get call stack info:
+            if hasattr(self, "logger"):
+                if DEBUG_PRINTS:
+                    print(f"{type(self).__name__} already has a logger.")
+                return
             stack = traceback.extract_stack()
             caller = stack[-2]  # The frame that called this __init__.
             caller_info = f"{caller.filename}:{caller.lineno} in {caller.name}"
