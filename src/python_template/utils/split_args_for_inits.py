@@ -360,6 +360,7 @@ def call_init_chain_respecting_super(  # pylint: disable=too-many-locals,too-com
     """Call init methods of super-respecting classes via `super()` chain, and manually call
     those that don't use `super()`.
     """
+    # called = set()
 
     # Step 1: Identify super-respecting classes:
     # (crude guess: look at if "super" is in source)
