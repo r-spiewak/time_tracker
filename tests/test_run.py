@@ -262,8 +262,42 @@ def test_cli_invalid_date_filter():
     shutil.rmtree(temp_dir)
 
 
+def test_cli_unknown_action():
+    """Test the CLI when given an unknown action."""
+    temp_dir = create_temp_env()
+    test_file = "invalid_date.csv"
+
+    result = runner.invoke(
+        app,
+        [
+            "--action",
+            "bob",
+            "--filename",
+            test_file,
+            "--directory",
+            temp_dir,
+        ],
+    )
+    assert result.exit_code == 0
+    assert STARTED_TIMER in result.output
+
+    shutil.rmtree(temp_dir)
+
+
 def test_verbosity_flag_changes_state():
     """Test that verbosity flag updates the state dictionary."""
     result = runner.invoke(app, ["--action", "status", "-vv"])
     assert result.exit_code == 0
     assert VERBOSITY_2 in result.output
+
+
+def test_run_invokes_app(mocker):
+    """Test that the run function invokes app."""
+    # mock_app_call = mocker.patch.object(run_module.app, "__call__")
+    # run_module.run()
+    mock_app_call = mocker.Mock()
+    mocker.patch("time_tracker.run.app", mock_app_call)
+    from time_tracker.run import run  # pylint: disable=import-outside-toplevel
+
+    run()
+    mock_app_call.assert_called_once()

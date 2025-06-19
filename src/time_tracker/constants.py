@@ -3,6 +3,9 @@
 from enum import Enum
 from pathlib import Path
 
+CONFIG_DIR = Path(__file__).parent / "config"
+CONFIG_PATH = CONFIG_DIR / "defaults.yaml"
+
 DEFAULT_FILENAME = "tracked_time.csv"
 DEFAULT_OUTPUT_DIR = Path("outputs")
 

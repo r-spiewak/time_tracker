@@ -3,6 +3,7 @@
 import csv
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -19,7 +20,9 @@ def manual_entries(tracker):
     task_b = "B"
     a_1_h = task_a + ": 1.00 h"
     a_2_h = task_a + ": 2.00 h"
+    b_1_h = task_b + ": 1.00 h"
     b_2_h = task_b + ": 2.00 h"
+    b_3_h = task_b + ": 3.00 h"
 
     # Add entries manually:
     entries = [
@@ -51,6 +54,14 @@ def manual_entries(tracker):
             ColumnHeaders.TASK.value: task_a,
             ColumnHeaders.DURATION.value: 3600,
         },
+        {
+            ColumnHeaders.START.value: (now + timedelta(days=2)).isoformat(),
+            ColumnHeaders.END.value: (
+                now + timedelta(days=2, hours=1)
+            ).isoformat(),
+            ColumnHeaders.TASK.value: task_b,
+            ColumnHeaders.DURATION.value: 3600,
+        },
     ]
     for entry in entries:
         line = [
@@ -72,7 +83,9 @@ def manual_entries(tracker):
         "durations": {
             "a_1_h": a_1_h,
             "a_2_h": a_2_h,
+            "b_1_h": b_1_h,
             "b_2_h": b_2_h,
+            "b_3_h": b_3_h,
         },
     }
 
@@ -120,7 +133,7 @@ def test_ensure_file_exists(temp_tracker):
     assert lines[0] == ",".join(HEADERS) + "\r\n"
 
 
-def test_get_all_entries(temp_tracker):
+def test_get_all_entries(temp_tracker, monkeypatch):
     """Tests the get_all_entries method."""
     tracker = temp_tracker
 
@@ -141,6 +154,25 @@ def test_get_all_entries(temp_tracker):
     for read_entry, entry in zip(read_entries, entries):
         for key in entry.keys():
             assert read_entry[key] == str(entry[key])
+
+    bad_csv_filename = "bad.csv"
+    bad_csv_filepath = tracker.filepath.parent / bad_csv_filename
+    with open(str(bad_csv_filepath), "w", encoding="utf8") as bad:
+        bad.writelines(["col1", "1,2"])
+    tracker.filepath = bad_csv_filepath
+    read_entries = tracker.get_all_entries()
+    assert read_entries == []
+
+    def mock_open(*args, **kwargs):
+        """Mock open function returning an error."""
+        raise OSError("Simulated file read error.")
+
+    monkeypatch.setattr(Path, "open", mock_open)
+    # mock_logger = mocker.patch(tracker.logger)
+    # tracker.logger = mock_logger
+    read_entries = tracker.get_all_entries()
+    assert read_entries == []
+    # mock_logger.error.assert_called_once()
 
 
 def test_get_last_entry(temp_tracker):
@@ -175,13 +207,15 @@ def test_report_with_filters(
     task_b = manual_dict["tasks"]["task_b"]
     a_1_h = manual_dict["durations"]["a_1_h"]
     a_2_h = manual_dict["durations"]["a_2_h"]
+    # b_1_h = manual_dict["durations"]["b_1_h"]
     b_2_h = manual_dict["durations"]["b_2_h"]
+    b_3_h = manual_dict["durations"]["b_3_h"]
 
     # Report without filters:
     tracker.report()
     output = capsys.readouterr().out
     assert a_2_h in output
-    assert b_2_h in output
+    assert b_3_h in output
 
     # Filter by task:
     tracker.report(filter_task=task_a)
