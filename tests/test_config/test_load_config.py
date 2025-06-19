@@ -4,7 +4,7 @@ import types
 
 import yaml
 
-from python_template import config
+from python_template import settings
 from python_template.config.load_config import Config, dict_to_namespace
 from python_template.constants import CONFIG_PATH
 
@@ -42,5 +42,5 @@ def test_config_dict_to_namespace_recursive():
 
 def test_loaded_config_is_class():
     """Tests that load_config returns a namespace."""
-    assert isinstance(config, Config)
-    assert hasattr(config, "debug_prints")
+    assert isinstance(settings, Config)
+    assert hasattr(settings, "debug_prints")

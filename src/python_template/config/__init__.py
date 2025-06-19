@@ -1,3 +1,3 @@
 """Expose Config class to module."""
 
-from .load_config import config
+from .load_config import settings
