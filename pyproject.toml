@@ -5,12 +5,15 @@ description = ""
 authors = ["r-spiewak <63987228+r-spiewak@users.noreply.github.com>"]
 readme = "README.md"
 packages = [{include = "time_tracker", from = "src"}]
+include = ["src/time_tracker/config/*.yaml"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 typer = "^0.12.3"
 pandas = "^2.2.2"
 pytest-env = "^1.1.5"
+pyyaml = "^6.0.2"
+pydantic = "^2.11.7"
 
 [tool.poetry.group.dev.dependencies]
 autoflake = "^2.2.1"
@@ -23,6 +26,7 @@ coverage = "^7.4.1"
 pre-commit = "^3.6.1"
 pytest-testdox = "^3.1.0"
 pytest-mock = "^3.14.0"
+types-pyyaml = "^6.0.12.20250516"
 
 [tool.black]
 line-length = 79
@@ -68,7 +72,7 @@ addopts = "--basetemp=/tmp/pytest"
 
 [tool.coverage.run]
 source = ["src", "tests"]
-omit = []
+omit = ["tests/**/conftest.py", "tests/*"]
 # For avoiding sqlite3 concurrency issues on CIFS drives:
 data_file = "/tmp/time_tracker/.coverage"
 
@@ -78,6 +82,8 @@ exclude_also = [
     # Don't complain about missing debug-only code:
     "def __repr__",
     "if self\\.debug",
+    "if DEBUG_PRINT:",
+    "if DEBUG_PRINTS:",
 
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",

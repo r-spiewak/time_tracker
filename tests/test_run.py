@@ -267,3 +267,15 @@ def test_verbosity_flag_changes_state():
     result = runner.invoke(app, ["--action", "status", "-vv"])
     assert result.exit_code == 0
     assert VERBOSITY_2 in result.output
+
+
+def test_run_invokes_app(mocker):
+    """Test that the run function invokes app."""
+    # mock_app_call = mocker.patch.object(run_module.app, "__call__")
+    # run_module.run()
+    mock_app_call = mocker.Mock()
+    mocker.patch("time_tracker.run.app", mock_app_call)
+    from time_tracker.run import run  # pylint: disable=import-outside-toplevel
+
+    run()
+    mock_app_call.assert_called_once()
