@@ -29,4 +29,4 @@ with open(str(CONFIG_PATH), "r", encoding="utf8") as f:
     config_dict = yaml.safe_load(f)
 
 # config = dict_to_namespace(config_dict)
-config = Config(**config_dict)
+settings = Config(**config_dict)

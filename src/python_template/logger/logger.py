@@ -9,9 +9,9 @@ from enum import IntEnum, auto
 from pathlib import Path
 from typing import cast
 
-from python_template import config
+from python_template.config import settings
 
-DEBUG_PRINTS = config.debug_prints
+DEBUG_PRINTS = settings.debug_prints
 
 
 class DebugCategory(IntEnum):
