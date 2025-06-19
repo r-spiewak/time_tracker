@@ -83,6 +83,7 @@ exclude_also = [
     "def __repr__",
     "if self\\.debug",
     "if DEBUG_PRINT:",
+    "if DEBUG_PRINTS:",
 
     # Don't complain if tests don't hit defensive assertion code:
     "raise AssertionError",
