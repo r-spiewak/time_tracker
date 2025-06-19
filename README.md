@@ -25,6 +25,6 @@ Alternatively, set this template as an upstream branch and merge in changes acco
 3. *Merge changes* (maybe do this on a branch other than main and make a PR into main): `git merge template/main -- allow-unrelated-histories` (for the main branch in the upstream template).
 4. *Fix Merge Conflicts*: Fix the merge conflicts in your local branch.
 
-However, both of these methods are messy (at least the first time), since the package name (`python_template`) changes, and (if the derived repo is created from the gitHub template) the merge will want to revert it back to `python_template` and put anything new into a `python_template` directory as well (since they don't have a shared history).
+However, both of these methods are messy (seemingly every time, though much worse the first time), since the package name (`python_template`) changes, and (if the derived repo is created from the gitHub template) the merge will want to revert it back to `python_template` and put anything new into a `python_template` directory as well (since they don't have a shared history).
 
 The possible way to avoid this is if the derived repo is created locally as a copy of this repo, since then they'll have a shared history (and then the flag `--allow-unrelated-histories` in step 3 can be omitted as well).

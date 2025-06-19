@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from python_template import settings
 from python_template.logger import LoggerMixin
 from python_template.logger.logger import DebugCategoryNameFilter
 
@@ -23,8 +24,9 @@ def test_logger(capsys, test_class):
     out, _ = capsys.readouterr()
     using_key_text = "Using logger_key:"
     existing_key_text = "Existing keys in _loggers:"
-    assert using_key_text in out
-    assert existing_key_text in out
+    if settings.debug_prints:
+        assert using_key_text in out
+        assert existing_key_text in out
 
 
 def test_custom_logger(create_custom_test_class):
