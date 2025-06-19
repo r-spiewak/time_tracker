@@ -262,6 +262,28 @@ def test_cli_invalid_date_filter():
     shutil.rmtree(temp_dir)
 
 
+def test_cli_unknown_action():
+    """Test the CLI when given an unknown action."""
+    temp_dir = create_temp_env()
+    test_file = "invalid_date.csv"
+
+    result = runner.invoke(
+        app,
+        [
+            "--action",
+            "bob",
+            "--filename",
+            test_file,
+            "--directory",
+            temp_dir,
+        ],
+    )
+    assert result.exit_code == 0
+    assert STARTED_TIMER in result.output
+
+    shutil.rmtree(temp_dir)
+
+
 def test_verbosity_flag_changes_state():
     """Test that verbosity flag updates the state dictionary."""
     result = runner.invoke(app, ["--action", "status", "-vv"])
