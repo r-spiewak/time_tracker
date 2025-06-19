@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import yaml
+from pydantic import BaseModel
 
 from python_template.constants import CONFIG_PATH
 
@@ -18,7 +19,14 @@ def dict_to_namespace(d):
     )
 
 
+class Config(BaseModel):
+    """Class to hold Config option from the YAML."""
+
+    debug_prints: bool
+
+
 with open(str(CONFIG_PATH), "r", encoding="utf8") as f:
     config_dict = yaml.safe_load(f)
 
-config = dict_to_namespace(config_dict)
+# config = dict_to_namespace(config_dict)
+config = Config(**config_dict)

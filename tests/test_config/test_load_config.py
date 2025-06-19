@@ -5,7 +5,7 @@ import types
 import yaml
 
 from python_template import config
-from python_template.config import load_config
+from python_template.config.load_config import Config, dict_to_namespace
 from python_template.constants import CONFIG_PATH
 
 
@@ -27,14 +27,20 @@ def test_config_dict_to_namespace_recursive():
         "a": one,
         "b": {"c": two, "d": {"e": three}},
     }
-    ns = load_config.dict_to_namespace(sample_dict)
+    ns = dict_to_namespace(sample_dict)
     assert isinstance(ns, types.SimpleNamespace)
     assert ns.a == one
     assert ns.b.c == two
     assert ns.b.d.e == three
 
 
-def test_loaded_config_is_namespace():
+# def test_loaded_config_is_namespace():
+#     """Tests that load_config returns a namespace."""
+#     assert isinstance(config, types.SimpleNamespace)
+#     assert hasattr(config, "debug_prints")
+
+
+def test_loaded_config_is_class():
     """Tests that load_config returns a namespace."""
-    assert isinstance(config, types.SimpleNamespace)
+    assert isinstance(config, Config)
     assert hasattr(config, "debug_prints")
