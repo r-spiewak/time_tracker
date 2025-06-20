@@ -41,25 +41,29 @@ class TimeTracker(LoggerMixin):
     class TrackerActions(Enum):
         """Enum class for valid TimeTracker actions."""
 
+        INNITIALIZE = "initialize"
         INVOICE = "invoice"
         REPORT = "report"
         STATUS = "status"
         TRACK = "track"
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         filename: str | Path | None = None,
         directory: str | Path | None = None,
         client: str | None = None,
+        client_config_file: str | Path | None = None,
+        me_config_file: str | Path | None = None,
     ):
         """Initialize class."""
         super().__init__()
-        self.client_config = load_client_config()
+        self.client_config = load_client_config(client_config_file)
         self.client = client or DEFAULT_CLIENT
         if self.client not in self.client_config.clients:
             msg = f"Client {self.client} not in client config."
             self.logger.warning(msg)
             print(msg)
+        self.me = load_me_config(me_config_file)
         dir_path = Path(directory) if directory else DEFAULT_OUTPUT_DIR
         if not filename:
             # if not self.client:
@@ -287,6 +291,7 @@ class TimeTracker(LoggerMixin):
         end_date: str | None = None,
         invoice_filename: str | Path | None = None,
         invoice_template: str | Path | None = None,
+        invoice_state_file: str | Path | None = None,
     ):
         """Generate an invoice based on tracked time."""
         # 1. Change "report" method to give the report values for this
@@ -335,12 +340,11 @@ class TimeTracker(LoggerMixin):
         invoice_template_path = invoice_template.parent
         invoice_template_filename = invoice_template.name
         # Load 'me' and invoice state info:
-        me = load_me_config()
-        if me.logo_path:
-            me.logo_path = prepare_logo_for_latex(
-                me.logo_path, invoice_filename.parent
+        if self.me.logo_path:
+            self.me.logo_path = prepare_logo_for_latex(
+                self.me.logo_path, invoice_filename.parent
             )
-        invoice_number = get_next_invoice_number()
+        invoice_number = get_next_invoice_number(invoice_state_file)
         # Load and render LaTeX template:
         env = Environment(
             loader=FileSystemLoader(invoice_template_path),
@@ -360,7 +364,7 @@ class TimeTracker(LoggerMixin):
             total=total,
             start_date=first_date.strftime("%m/%d/%Y"),
             end_date=last_date.strftime("%m/%d/%Y"),
-            me=me,
+            me=self.me,
             invoice_number=invoice_number,
         )
         # Write and compile:
