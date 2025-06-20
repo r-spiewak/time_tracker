@@ -12,7 +12,7 @@ def test_party_invalid_address():
             name="bob",
             address="123 Fourth Ave, Five City, Sixth State, 00000",
             email="bob@example.com",
-            phone="987-654-3210",
+            phone="901-654-3210",
         )
 
 
@@ -23,5 +23,5 @@ def test_party_invalid_phone():
             name="bob",
             address="123 Fourth Ave\nFive City, Sixth State 00000",
             email="bob@example.com",
-            phone="987-654-3210-1234",
+            phone="901-654-3210-1234",
         )

@@ -16,7 +16,7 @@ def test_me_with_all_fields(tmp_path):
     me = Me(
         name=alice,
         address="123 Main St\nCity",
-        phone="333-555-1234",
+        phone="301-555-1234",
         email="alice@example.com",
         company_name=awesome,
         logo_path=str(logo),
@@ -32,7 +32,7 @@ def test_me_logo_path_none():
     me = Me(
         name="Bob",
         address="456 Side St\nCity",
-        phone="333-555-5678",
+        phone="301-555-5678",
         email="bob@example.com",
         logo_path=None,
     )
@@ -44,7 +44,7 @@ def test_me_logo_path_nonexistent():
     me = Me(
         name="Carol",
         address="789 Road\nCity",
-        phone="555-666-0000",
+        phone="501-666-0000",
         email="carol@example.com",
         logo_path="nonexistent.svg",
     )
@@ -58,7 +58,7 @@ def test_me_logo_path_invalid_extension(tmp_path):
     me = Me(
         name="Dave",
         address="1010 Elm\nCity",
-        phone="555-333-4321",
+        phone="501-333-4321",
         email="dave@example.com",
         logo_path=str(bad_logo),
     )
@@ -83,7 +83,7 @@ def test_me_logo_path_with_exception(monkeypatch, tmp_path):
     me = Me(
         name="Eve",
         address="1212 Ivy\nCity",
-        phone="333-555-8765",
+        phone="301-555-8765",
         email="eve@example.com",
         # logo_path=BrokenPath(),
         logo_path=str(real_path),  # Still passes type validation
