@@ -26,7 +26,7 @@ def test_load_me_config_with_provided_file(tmp_path):
                 "name": test_user,
                 "address": "123 Test Ave\nCity",
                 "email": "test@example.com",
-                "phone": "333-555-1234",
+                "phone": "301-555-1234",
             }
         )
     )
@@ -46,7 +46,7 @@ def test_load_me_config_fallback_default_exists(tmp_path, mocker):
                 "name": default_user,
                 "address": "456 Default Blvd\nCity",
                 "email": "default@example.com",
-                "phone": "222-555-5678",
+                "phone": "201-555-5678",
             }
         )
     )
@@ -74,7 +74,7 @@ def test_load_me_config_fallback_sample_used(tmp_path, mocker):
                 "name": sample_user,
                 "address": "789 Sample Rd\nCity",
                 "email": "sample@example.com",
-                "phone": "333-555-9999",
+                "phone": "301-555-9999",
             }
         )
     )
