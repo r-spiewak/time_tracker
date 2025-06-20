@@ -312,12 +312,17 @@ def test_generate_invoice(
 
     # Run invoice generator:
     tracker.generate_invoice()
+    tex_test_filename = tmp_path / (
+        f"{datetime.today().strftime('%Y_%m_%d')}-"
+        f"{tracker.client}_invoice.tex"
+    )
 
     # Check output .tex written:
     tex_out = list(tmp_path.glob("*.tex"))
     assert len(tex_out) == two
     assert tex_template in tex_out
-    assert tex_out[0].read_text().startswith("Invoice")
+    assert tex_test_filename in tex_out
+    assert tex_test_filename.read_text().startswith("Invoice")
 
     # Check subprocess and logger call:
     mock_run.assert_called_once()
