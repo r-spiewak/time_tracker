@@ -1,0 +1,68 @@
+\documentclass[11pt]{article}
+\usepackage{longtable}
+\usepackage[margin=1in]{geometry}
+\usepackage{datetime}
+\usepackage{array}
+\usepackage{svg}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{minipage}{0.6\textwidth}
+((* if me.company_name *))
+\textbf{((( me.company_name )))} \\
+((( me.name ))) 
+((* else *))
+\textbf{((( me.name )))} 
+((* endif *))
+((( me.address | latex_breaks ))) \\
+((( me.email ))) \\
+((( me.phone )))
+\end{minipage}
+\hfill
+\begin{minipage}{0.3\textwidth}
+    ((* if me.logo_path *))
+        ((* set ext = me.logo_path.split('.')[-1].lower() *))
+        ((* if ext == 'svg' *))
+            % \includesvg[width=\linewidth]{((( me.logo_path | replace('.svg', '') )))}
+            \includesvg[width=\linewidth]{((( me.logo_path.replace('.svg', '') )))}
+        ((* else *)))
+            \includegraphics[width=\linewidth]{ ((( me.logo_path ))) }
+        ((* endif *))
+    ((* endif *))
+\end{minipage}
+
+\vspace{2em}
+
+% \begin{center}
+\begin{minipage}{0.45\textwidth}
+    % \Large \textbf{Invoice}\\[1em]
+    \normalsize ((( client.name )))\\
+    ((( client.address | latex_breaks )))\\
+    ((( client.phone )))\\
+    ((( client.email )))\\[1em]
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+    Invoice \#: \hfill ((( invoice_number )))\\
+    Invoice Date: \hfill ((( date )))\\
+    Dates of Service: \hfill ((( start_date )))-((( end_date )))\\
+    \textbf{Amount Due: \hfill \$ ((( "%.2f"|format(total) ))) }
+\end{minipage}
+% \end{center}
+
+\vspace{1em}
+
+\begin{longtable}{|p{7cm}|R{2.5cm}|R{2.5cm}|R{3cm}|}
+    \hline
+    \textbf{Task} & \textbf{Hours} & \textbf{Rate (\$)} & \textbf{Total (\$)} \\
+    \hline
+    ((* for item in items *))
+    ((( item.task ))) & ((( "%.2f"|format(item.hours) ))) & ((( "%.2f"|format(item.rate) ))) & ((( "%.2f"|format(item.total) ))) \\
+    \hline
+    ((* endfor *))
+    \multicolumn{3}{|r|}{\textbf{Total Due}} & \textbf{\$ ((( "%.2f"|format(total) ))) }\\
+    \hline
+\end{longtable}
+
+\end{document}

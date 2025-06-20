@@ -3,7 +3,6 @@
 import typer
 from typing_extensions import Annotated
 
-from time_tracker.constants import DEFAULT_FILENAME
 from time_tracker.tracker import TimeTracker
 
 app = typer.Typer()
@@ -21,8 +20,8 @@ def main(  # pylint: disable=too-many-arguments
         typer.Option("--task", "-t", help="Task name or description."),
     ] = "",
     filename: Annotated[
-        str, typer.Option("--filename", "-f", help="CSV filename.")
-    ] = DEFAULT_FILENAME,
+        str | None, typer.Option("--filename", "-f", help="CSV filename.")
+    ] = None,
     directory: Annotated[
         str,
         typer.Option("--directory", "-d", help="Directory to store the file."),

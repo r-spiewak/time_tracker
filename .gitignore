@@ -128,6 +128,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# VSCode
+.vscode
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -163,3 +166,18 @@ cython_debug/
 logs/
 # Project outputs
 outputs/
+# Ignore local config and templates
+assets/logo.*
+assets/
+config/clients.json
+config/me.json
+config/invoice_state.json
+config/
+templates/invoice.tex.jinja2
+templates/
+# ...but don't ignore the sample files
+!assets/saomple-logo.svg
+!config/sample_clients.json
+!config/sample_me.json
+!config/sample_invoice_state.json
+!templates/sample_invoice.tex.jinja2

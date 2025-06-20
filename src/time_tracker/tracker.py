@@ -1,18 +1,38 @@
 """This file contains the actual tracker."""
 
 import csv
+import shutil
+import subprocess
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
+
 from time_tracker.constants import (
-    DEFAULT_FILENAME,
+    DEFAULT_CLIENT,
+    DEFAULT_CLIENT_CONFIG_FILE,
+    DEFAULT_INVOICE_DIR,
+    DEFAULT_INVOICE_STATE_CONFIG_FILE,
+    DEFAULT_INVOICE_TEMPLATE,
+    DEFAULT_ME_CONFIG_FILE,
     DEFAULT_OUTPUT_DIR,
     HEADERS,
+    SAMPLE_CLIENT_CONFIG_FILE,
+    SAMPLE_INVOICE_STATE_CONFIG_FILE,
+    SAMPLE_INVOICE_TEMPLATE,
+    SAMPLE_ME_CONFIG_FILE,
     ColumnHeaders,
 )
 from time_tracker.logger import LoggerMixin
+
+from .config import (
+    get_next_invoice_number,
+    load_client_config,
+    load_me_config,
+    prepare_logo_for_latex,
+)
 
 
 class TimeTracker(LoggerMixin):
@@ -21,18 +41,43 @@ class TimeTracker(LoggerMixin):
     class TrackerActions(Enum):
         """Enum class for valid TimeTracker actions."""
 
+        INVOICE = "invoice"
         REPORT = "report"
         STATUS = "status"
         TRACK = "track"
 
     def __init__(
         self,
-        filename: str = DEFAULT_FILENAME,
-        directory: str | None = None,
+        filename: str | Path | None = None,
+        directory: str | Path | None = None,
+        client: str | None = None,
     ):
         """Initialize class."""
         super().__init__()
+        self.client_config = load_client_config()
+        self.client = client or DEFAULT_CLIENT
+        if self.client not in self.client_config.clients:
+            msg = f"Client {self.client} not in client config."
+            self.logger.warning(msg)
+            print(msg)
         dir_path = Path(directory) if directory else DEFAULT_OUTPUT_DIR
+        if not filename:
+            # if not self.client:
+            #     filename = DEFAULT_FILENAME
+            # elif (
+            #     self.client in self.client_config
+            #     and "filename" in self.client_config[self.client]
+            # ):
+            #     filename = self.client_config[self.client]["filename"]
+            # else:
+            #     filename = f"{self.client}.csv"
+            if self.client in self.client_config.clients:
+                filename = Path(
+                    self.client_config.clients[self.client].filename
+                )
+            else:
+                filename = f"{self.client}.csv"
+        assert filename
         self.filepath = dir_path / filename
         self.ensure_file_exists()
         self.actions = self.TrackerActions
@@ -165,6 +210,25 @@ class TimeTracker(LoggerMixin):
         end_date: str | None = None,
     ):
         """Output a report of time tracking."""
+        totals, _ = self.generate_report(filter_task, start_date, end_date)
+
+        if not totals:
+            print("No matching entries found.")
+            return
+
+        print("Time spent per task (in hours):")
+        for task, seconds in totals.items():
+            print(f"  {task}: {seconds / 3600:.2f} h")
+        total_time = sum(totals.values())
+        print(f"\nTotal time: {total_time / 3600:.2f} h")
+
+    def generate_report(
+        self,
+        filter_task: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ):
+        """Generate a report, which can be printed or turned into an invoice."""
         entries = self.get_all_entries()
         # print(entries)
         totals: dict[str, float] = defaultdict(float)
@@ -183,6 +247,12 @@ class TimeTracker(LoggerMixin):
         except ValueError:
             print("Invalid date format. Use YYYY-MM-DD.")
             raise
+        # first_date = (
+        #     datetime.combine(start_date, datetime.time()) if start_date else datetime.now()
+        # )
+        # last_date = datetime.combine(end_date, datetime.time()) if end_date else datetime.now()
+        first_date = start_dt or datetime.today().date()
+        last_date = end_dt or datetime.today().date()
 
         for entry in entries:
             task = entry.get(ColumnHeaders.TASK.value, "") or "Unspecified"
@@ -202,15 +272,152 @@ class TimeTracker(LoggerMixin):
                 if filter_task and task != filter_task:
                     # print(f"Entry {entry} not in {filter_task}, skipping...")
                     continue
+                # print(f"first_date ({type(first_date)}): {first_date}")
+                # print(f"start_time ({type(start_time)}): {start_time}")
+                first_date = min(first_date, start_time)
+                last_date = max(last_date, end_time)
                 totals[task] += duration
                 # print(f"Current totals: {totals}")
+        return totals, (first_date, last_date)
 
-        if not totals:
-            print("No matching entries found.")
-            return
-
-        print("Time spent per task (in hours):")
+    def generate_invoice(  # pylint: disable=too-many-arguments,too-many-locals
+        self,
+        filter_task: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        invoice_filename: str | Path | None = None,
+        invoice_template: str | Path | None = None,
+    ):
+        """Generate an invoice based on tracked time."""
+        # 1. Change "report" method to give the report values for this
+        #    in "run_report", and then just use those values to print.
+        totals, dates = self.generate_report(filter_task, start_date, end_date)
+        first_date, last_date = dates
+        # 2. Create a "clients.json" file containing things like name,
+        #    address, phone number, email, rate, csv_filename, etc.
+        #    Have the tracker's filepath object extract from there too?
+        # 3. Create a LaTeX jinja2 template for the invoice.
+        # 4. Create a default outputs/invoices dir, and a default invoice
+        #    filename (YYYY_MM_DD-client_invoice.pdf).
+        if not invoice_filename:
+            DEFAULT_INVOICE_DIR.mkdir(parents=True, exist_ok=True)
+            invoice_filename = DEFAULT_INVOICE_DIR / (
+                f"{datetime.today().strftime('%Y_%m_%d')}-"
+                f"{self.client}_invoice.pdf"
+            )
+        else:
+            invoice_filename = Path(invoice_filename)
+        invoice_template = (
+            Path(invoice_template)
+            if invoice_template
+            else (
+                DEFAULT_INVOICE_TEMPLATE
+                if DEFAULT_INVOICE_TEMPLATE.exists()
+                else SAMPLE_INVOICE_TEMPLATE
+            )
+        )
+        # Build the items list:
+        items = []
+        total = 0.0
+        rate = self.client_config.clients[self.client].rate
         for task, seconds in totals.items():
-            print(f"  {task}: {seconds / 3600:.2f} h")
-        total_time = sum(totals.values())
-        print(f"\nTotal time: {total_time / 3600:.2f} h")
+            hours = seconds / 3600
+            subtotal = hours * rate
+            items.append(
+                {
+                    "task": task,
+                    "hours": hours,
+                    "rate": rate,
+                    "total": subtotal,
+                }
+            )
+            total += subtotal
+        invoice_template_path = invoice_template.parent
+        invoice_template_filename = invoice_template.name
+        # Load 'me' and invoice state info:
+        me = load_me_config()
+        if me.logo_path:
+            me.logo_path = prepare_logo_for_latex(
+                me.logo_path, invoice_filename.parent
+            )
+        invoice_number = get_next_invoice_number()
+        # Load and render LaTeX template:
+        env = Environment(
+            loader=FileSystemLoader(invoice_template_path),
+            block_start_string="((*",
+            block_end_string="*))",
+            variable_start_string="(((",
+            variable_end_string=")))",
+            comment_start_string="((#",
+            comment_end_string="#))",
+        )
+        env.filters["latex_breaks"] = lambda s: s.replace("\n", r"\\")
+        template = env.get_template(invoice_template_filename)
+        rendered_tex = template.render(
+            client=self.client_config.clients[self.client],
+            date=datetime.now().strftime("%m/%d/%Y"),
+            items=items,
+            total=total,
+            start_date=first_date.strftime("%m/%d/%Y"),
+            end_date=last_date.strftime("%m/%d/%Y"),
+            me=me,
+            invoice_number=invoice_number,
+        )
+        # Write and compile:
+        tex_path = invoice_filename.with_suffix(".tex")
+        with open(tex_path, "w", encoding="utf8") as f:
+            f.write(rendered_tex)
+        try:  # pylint: disable=too-many-try-statements
+            _ = subprocess.run(
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-shell-escape",
+                    tex_path.name,
+                ],
+                cwd=tex_path.parent,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.logger.info(f"✅ Invoice created: {invoice_filename}")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            self.logger.warning("❌ Failed to compile LaTeX invoice: %s", e)
+            if hasattr(e, "stdout") and e.stdout:
+                self.logger.warning("📄 STDOUT:\n%s", e.stdout)
+            if hasattr(e, "stderr") and e.stderr:
+                self.logger.warning("🐞 STDERR:\n%s", e.stderr)
+
+    @staticmethod
+    def init_config():
+        """Initialize the tracker environment with
+        a client config file and an invoice template."""
+        client_config_src = SAMPLE_CLIENT_CONFIG_FILE
+        client_config_dst = DEFAULT_CLIENT_CONFIG_FILE
+
+        template_src = SAMPLE_INVOICE_TEMPLATE
+        template_dst = DEFAULT_INVOICE_TEMPLATE
+
+        me_config_src = SAMPLE_ME_CONFIG_FILE
+        me_config_dst = DEFAULT_ME_CONFIG_FILE
+
+        invoice_state_config_src = SAMPLE_INVOICE_STATE_CONFIG_FILE
+        invoice_state_config_dst = DEFAULT_INVOICE_STATE_CONFIG_FILE
+
+        srcs = (
+            client_config_src,
+            template_src,
+            me_config_src,
+            invoice_state_config_src,
+        )
+        dsts = (
+            client_config_dst,
+            template_dst,
+            me_config_dst,
+            invoice_state_config_dst,
+        )
+
+        for src, dst in zip(srcs, dsts):
+            if not dst.exists():
+                shutil.copy(src, dst)

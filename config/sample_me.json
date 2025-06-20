@@ -1,0 +1,8 @@
+{
+  "company_name": "My Company, LLC", 
+  "name": "My Name",
+  "address": "123 Science Lane\nSuite 42\nNowhere, NS 00000",
+  "email": "info@mycompany.com",
+  "phone": "987-654-3210",
+  "logo_path": "assets/sample-logo.svg"
+}
