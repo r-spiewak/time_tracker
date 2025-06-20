@@ -133,7 +133,7 @@ def test_ensure_file_exists(temp_tracker):
     assert lines[0] == ",".join(HEADERS) + "\r\n"
 
 
-def test_get_all_entries(temp_tracker, monkeypatch):
+def test_get_all_entries(temp_tracker, monkeypatch, mocker):
     """Tests the get_all_entries method."""
     tracker = temp_tracker
 
@@ -169,7 +169,8 @@ def test_get_all_entries(temp_tracker, monkeypatch):
 
     monkeypatch.setattr(Path, "open", mock_open)
     # mock_logger = mocker.patch(tracker.logger)
-    # tracker.logger = mock_logger
+    mock_logger = mocker.Mock()
+    tracker.logger = mock_logger
     read_entries = tracker.get_all_entries()
     assert read_entries == []
     # mock_logger.error.assert_called_once()

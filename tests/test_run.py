@@ -8,6 +8,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from time_tracker.run import app
+from time_tracker.tracker import TimeTracker
 
 CURRENTLY_TRACKING = "Currently tracking task:"
 DURATION = "Duration:"
@@ -26,7 +27,7 @@ def create_temp_env():
     return temp_dir
 
 
-def test_app(capsys):
+def test_app(capsys, mock_tracker_logger):  # pylint: disable=unused-argument
     """Test the cli app invocation."""
     temp_dir = create_temp_env()
     test_file = "cli_test.csv"
@@ -53,7 +54,7 @@ def test_app(capsys):
     assert Path(file_path).exists()
 
 
-def test_tracking():
+def test_tracking(mock_tracker_logger):  # pylint: disable=unused-argument
     """Test tracking functionality."""
     temp_dir = create_temp_env()
     test_file = "cli_test.csv"
@@ -92,7 +93,7 @@ def test_tracking():
     shutil.rmtree(temp_dir)
 
 
-def test_status():
+def test_status(mock_tracker_logger):  # pylint: disable=unused-argument
     """Test the 'status' feature."""
     temp_dir = create_temp_env()
     test_file = "cli_test.csv"
@@ -156,7 +157,9 @@ def test_status():
     shutil.rmtree(temp_dir)
 
 
-def test_cli_report_with_task_filter():
+def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
+    mock_tracker_logger,
+):
     """Test the 'report' feature."""
     temp_dir = create_temp_env()
     test_file = "report_test.csv"
@@ -237,7 +240,9 @@ def test_cli_report_with_task_filter():
     shutil.rmtree(temp_dir)
 
 
-def test_cli_invalid_date_filter():
+def test_cli_invalid_date_filter(  # pylint: disable=unused-argument
+    mock_tracker_logger,
+):
     """Test for invalid date format."""
     temp_dir = create_temp_env()
     test_file = "invalid_date.csv"
@@ -262,7 +267,9 @@ def test_cli_invalid_date_filter():
     shutil.rmtree(temp_dir)
 
 
-def test_cli_unknown_action():
+def test_cli_unknown_action(
+    mock_tracker_logger,
+):  # pylint: disable=unused-argument
     """Test the CLI when given an unknown action."""
     temp_dir = create_temp_env()
     test_file = "invalid_date.csv"
@@ -284,7 +291,9 @@ def test_cli_unknown_action():
     shutil.rmtree(temp_dir)
 
 
-def test_verbosity_flag_changes_state():
+def test_verbosity_flag_changes_state(  # pylint: disable=unused-argument
+    mock_tracker_logger,
+):
     """Test that verbosity flag updates the state dictionary."""
     result = runner.invoke(app, ["--action", "status", "-vv"])
     assert result.exit_code == 0
@@ -301,3 +310,29 @@ def test_run_invokes_app(mocker):
 
     run()
     mock_app_call.assert_called_once()
+
+
+def test_main_actions(mocker):
+    """Test the main function calls based on the action input."""
+    mock_tracker = mocker.Mock()
+    mock_tracker.actions = TimeTracker.TrackerActions
+    mock_tracker.track = mocker.Mock()
+    mock_tracker.status = mocker.Mock()
+    mock_tracker.report = mocker.Mock()
+    mock_tracker.generate_invoice = mocker.Mock()
+    mock_tracker.init_config = mocker.Mock()
+    mocker.patch("time_tracker.run.TimeTracker", return_value=mock_tracker)
+    from time_tracker.run import (  # pylint: disable=import-outside-toplevel
+        main,
+    )
+
+    main()
+    mock_tracker.track.assert_called_once()
+    main(action=mock_tracker.actions.STATUS.value)
+    mock_tracker.status.assert_called_once()
+    main(action=mock_tracker.actions.REPORT.value)
+    mock_tracker.report.assert_called_once()
+    main(action=mock_tracker.actions.INVOICE.value)
+    mock_tracker.generate_invoice.assert_called_once()
+    main(action=mock_tracker.actions.INNITIALIZE.value)
+    mock_tracker.init_config.assert_called_once()

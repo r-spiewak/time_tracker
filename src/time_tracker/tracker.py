@@ -54,9 +54,10 @@ class TimeTracker(LoggerMixin):
         client: str | None = None,
         client_config_file: str | Path | None = None,
         me_config_file: str | Path | None = None,
+        **kwargs,
     ):
         """Initialize class."""
-        super().__init__()
+        super().__init__(**kwargs)
         self.client_config = load_client_config(client_config_file)
         self.client = client or DEFAULT_CLIENT
         if self.client not in self.client_config.clients:
