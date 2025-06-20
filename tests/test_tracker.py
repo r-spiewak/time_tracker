@@ -327,7 +327,7 @@ def test_generate_invoice(
     # Check subprocess and logger call:
     mock_run.assert_called_once()
     mock_logger.info.assert_called_once_with(
-        f"✅ Invoice created: {tmp_path / tex_out[0].with_suffix('.pdf').name}"
+        f"✅ Invoice created: {tex_test_filename.with_suffix('.pdf')}"
     )
 
     # Test when filename is given:
