@@ -7,6 +7,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from time_tracker.constants import SAMPLE_CLIENT_CONFIG_FILE
 from time_tracker.run import app
 from time_tracker.tracker import TimeTracker
 
@@ -41,6 +42,8 @@ def test_app(capsys, mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     with capsys.disabled():
@@ -69,6 +72,8 @@ def test_tracking(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -84,6 +89,8 @@ def test_tracking(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -108,6 +115,8 @@ def test_status(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -121,6 +130,8 @@ def test_status(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -136,6 +147,8 @@ def test_status(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -149,6 +162,8 @@ def test_status(mock_tracker_logger):  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -180,6 +195,8 @@ def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
             temp_dir,
             "--task",
             task_a,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     runner.invoke(
@@ -191,6 +208,8 @@ def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     runner.invoke(
@@ -204,6 +223,8 @@ def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
             temp_dir,
             "--task",
             task_b,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     runner.invoke(
@@ -215,6 +236,8 @@ def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
 
@@ -230,6 +253,8 @@ def test_cli_report_with_task_filter(  # pylint: disable=unused-argument
             temp_dir,
             "--task",
             task_a,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -259,6 +284,8 @@ def test_cli_invalid_date_filter(  # pylint: disable=unused-argument
             temp_dir,
             "--start-date",
             "not-a-date",
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code != 0
@@ -283,6 +310,8 @@ def test_cli_unknown_action(
             test_file,
             "--directory",
             temp_dir,
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
         ],
     )
     assert result.exit_code == 0
@@ -295,7 +324,16 @@ def test_verbosity_flag_changes_state(  # pylint: disable=unused-argument
     mock_tracker_logger,
 ):
     """Test that verbosity flag updates the state dictionary."""
-    result = runner.invoke(app, ["--action", "status", "-vv"])
+    result = runner.invoke(
+        app,
+        [
+            "--action",
+            "status",
+            "-vv",
+            "--client-config",
+            str(SAMPLE_CLIENT_CONFIG_FILE),
+        ],
+    )
     assert result.exit_code == 0
     assert VERBOSITY_2 in result.output
 
