@@ -10,6 +10,7 @@ from ..base_config import Party
 class Client(Party):
     """Configuration for Client parties to a contract."""
 
+    project: str | None = None
     rate: float
     filename: str
 
