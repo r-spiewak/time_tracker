@@ -1,6 +1,7 @@
 """This file contains the actual tracker."""
 
 import csv
+import re
 import shutil
 import subprocess
 from collections import defaultdict
@@ -132,6 +133,7 @@ class TimeTracker(LoggerMixin):
         Start or stop timing, depending on current status."""
         now = datetime.now()
         last_entry = self.get_last_entry()
+        normed_task = self.normalize_tasks(task) if task else ""
 
         if (
             last_entry
@@ -153,9 +155,10 @@ class TimeTracker(LoggerMixin):
             #     lines = list(csv.reader(f))
             lines = self.get_all_entries()
             last_entry_task = last_entry.get(ColumnHeaders.TASK.value, "")
-            task_entry = (
-                last_entry_task + " " + task if task else last_entry_task
-            )
+            # task_entry = (
+            #     last_entry_task + " " + normed_task if normed_task else last_entry_task
+            # )
+            task_entry = self.merge_task_lists(last_entry_task, normed_task)
             # Replace last row:
             lines[-1] = {
                 ColumnHeaders.START.value: last_entry[  # pylint: disable=unsubscriptable-object
@@ -177,7 +180,7 @@ class TimeTracker(LoggerMixin):
                     ColumnHeaders.START.value: now.isoformat(),
                     ColumnHeaders.END.value: "",
                     ColumnHeaders.DURATION.value: "",
-                    ColumnHeaders.TASK.value: task or "",
+                    ColumnHeaders.TASK.value: normed_task or "",
                 }
             ]
             # with self.filepath.open("a", newline="") as f:
@@ -186,8 +189,30 @@ class TimeTracker(LoggerMixin):
             self.safe_write_csv(new_entry, mode="a")
             print(
                 f"Started timer at {now}"
-                + (f" for task: {task}" if task else ".")
+                + (f" for task: {normed_task}" if normed_task else ".")
             )
+
+    @staticmethod
+    def merge_task_lists(start_tasks: str, end_tasks: str) -> str:
+        """Merge and deduplicate comma-separated task strings."""
+
+        def parse(task_str: str) -> list[str]:
+            return [t.strip() for t in task_str.split(",") if t.strip()]
+
+        combined = parse(start_tasks) + parse(end_tasks)
+        deduped = list(dict.fromkeys(combined))  # preserves order
+        return ", ".join(deduped)
+
+    @staticmethod
+    def normalize_tasks(task_str: str) -> str:
+        """Convert comma-separated or " and " -separated tasks to CSV-style."""
+        # To separate only commas and spaces, just use [,\s] as the re pattern.
+        parts = [
+            part.strip()
+            for part in re.split(r",|\s+and\s+", task_str)
+            if part.strip()
+        ]
+        return ", ".join(dict.fromkeys(parts))  # de-dupe + preserve order
 
     def status(self):
         """Get status of currently tracked task, or no active timer."""
