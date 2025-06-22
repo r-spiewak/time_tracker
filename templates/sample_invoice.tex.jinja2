@@ -25,9 +25,9 @@
         ((* set ext = me.logo_path.split('.')[-1].lower() *))
         ((* if ext == 'svg' *))
             % \includesvg[width=\linewidth]{((( me.logo_path | replace('.svg', '') )))}
-            \includesvg[width=\linewidth]{((( me.logo_path.replace('.svg', '') )))}
-        ((* else *)))
-            \includegraphics[width=\linewidth]{ ((( me.logo_path ))) }
+            \includesvg[width=\linewidth]{"((( me.logo_path.replace('.svg', '') )))"}
+        ((* else *))
+            \includegraphics[width=\linewidth]{"((( me.logo_path )))"}
         ((* endif *))
     ((* endif *))
 \end{minipage}
@@ -37,7 +37,10 @@
 % \begin{center}
 \begin{minipage}{0.45\textwidth}
     % \Large \textbf{Invoice}\\[1em]
-    \normalsize ((( client.name )))\\
+    \normalsize \textbf{((( client.name )))}
+    ((* if client.project *))
+    ((( client.project )))
+    ((* endif *))
     ((( client.address | latex_breaks )))\\
     ((( client.phone )))\\
     ((( client.email )))\\[1em]
