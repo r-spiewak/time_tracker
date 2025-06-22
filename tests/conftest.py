@@ -7,6 +7,7 @@ import tempfile
 
 import pytest
 
+from time_tracker.constants import SAMPLE_CLIENT_CONFIG_FILE
 from time_tracker.tracker import TimeTracker
 
 
@@ -31,14 +32,22 @@ def mock_tracker(mocker):
 def mock_tracker_logger(mocker):
     """A fixture for a mock logger __init__."""
     logger_mock = mocker.Mock()
-    mocker.patch(
-        "time_tracker.tracker.LoggerMixin.__init__", return_value=logger_mock
-    )
+
+    def mock_init(self, *args, **kwargs):  # pylint: disable=unused-argument
+        """Mock init method fro LoggerMixin for tracker."""
+        self.logger = logger_mock
+
+    # This works to replace the init, but then tracker doesn't have a .logger attr.
+    # mocker.patch(
+    #     "time_tracker.tracker.LoggerMixin.__init__", return_value=logger_mock
+    # )
+    mocker.patch("time_tracker.tracker.LoggerMixin.__init__", mock_init)
     return logger_mock
 
 
 @pytest.fixture
 def temp_tracker(
+    mocker,
     mock_tracker_logger,
 ):  # pylint: disable=redefined-outer-name,unused-argument
     """A fixture tracker object for testing."""
@@ -51,6 +60,7 @@ def temp_tracker(
     tracker = TimeTracker(
         filename="test.csv",
         directory=temp_dir,
+        client_config_file=SAMPLE_CLIENT_CONFIG_FILE,
         logger_filename=logger_filename,
     )
     logfile = (
@@ -58,6 +68,8 @@ def temp_tracker(
         if hasattr(tracker, "logger_filename")
         else None
     )
+    if not hasattr(tracker, "logger"):
+        tracker.logger = mocker.Mock()
     yield tracker
     if (
         hasattr(tracker, "logger")

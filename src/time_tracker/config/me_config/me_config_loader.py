@@ -9,9 +9,12 @@ from time_tracker.constants import (
     SAMPLE_ME_CONFIG_FILE,
 )
 
+from ...config.load_config import settings
 from .me_config_models import Me
 
 ALLOWED_EXTS = {".pdf", ".png", ".jpeg", ".jpg", ".eps", ".svg"}
+
+DEBUG_PRINTS = settings.debug_prints
 
 
 def load_me_config(me_config_file: str | Path | None = None) -> Me:
@@ -63,7 +66,8 @@ def prepare_logo_for_latex(
 
     # shutil.copyfile(src, latex_dir / src.name)
     # return src.name  # Return full filename (with .svg)
-    print(
-        f" Logo: {str(src.relative_to(latex_dir.absolute().resolve(), walk_up=True))}"
-    )
+    if DEBUG_PRINTS:
+        print(
+            f" Logo: {str(src.relative_to(latex_dir.absolute().resolve(), walk_up=True))}"
+        )
     return str(src.relative_to(latex_dir.resolve(), walk_up=True))
