@@ -12,7 +12,7 @@ def test_client_invalid_rate():
             name="bob",
             address="123 Fourth Ave\nFive City, Sixth State, 00000",
             email="bob@example.com",
-            phone="987-654-3210",
+            phone="901-654-3210",
             rate=-10,
             filename="file.csv",
         )

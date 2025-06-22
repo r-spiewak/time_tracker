@@ -4,7 +4,7 @@
         "name": "Example Corporation",
         "address": "123 Made Up Lane\nNowhere, NS 00000",
         "email": "billing@example.com",
-        "phone": "123-456-7890",
+        "phone": "201-456-7890",
         "rate": 200.0,
         "filename": "client1.csv"
     } 
