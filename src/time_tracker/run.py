@@ -1,4 +1,4 @@
-"""Run the script_profits app."""
+"""Run the time_tracker app."""
 
 import typer
 from typing_extensions import Annotated
@@ -13,7 +13,14 @@ state = {"verbosity": 0}
 def main(  # pylint: disable=too-many-arguments
     action: Annotated[
         str,
-        typer.Option("--action", "-a", help="What to do with the tracker."),
+        typer.Option(
+            "--action",
+            "-a",
+            help=(
+                "What to do with the tracker. "
+                "Valid actions: track, status, report, invoice, initialize."
+            ),
+        ),
     ] = "track",
     task: Annotated[
         str,
@@ -87,7 +94,7 @@ def main(  # pylint: disable=too-many-arguments
         int, typer.Option("--verbosity", "-v", count=True)
     ] = 0,
 ) -> int:
-    """Main function to call the script_profit methods."""
+    """Main function to call the time_tracker methods."""
 
     # Do stuff here.
     tracker = TimeTracker(
